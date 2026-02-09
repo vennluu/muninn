@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	"strings"
 
 	serverApi "github.com/crea8r/muninn/server/internal/api"
 	"github.com/crea8r/muninn/server/internal/config"
@@ -45,5 +46,10 @@ func init() {
 
 // Handler is the entrypoint for Vercel Serverless Function
 func Handler(w http.ResponseWriter, r *http.Request) {
+	// Strip /api prefix if present to match the internal router paths
+	if strings.HasPrefix(r.URL.Path, "/api") {
+		http.StripPrefix("/api", router).ServeHTTP(w, r)
+		return
+	}
 	router.ServeHTTP(w, r)
 }
