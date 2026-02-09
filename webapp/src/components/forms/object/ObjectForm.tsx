@@ -16,6 +16,9 @@ import {
   InputRightAddon,
   FormHelperText,
   useToast,
+  InputLeftElement,
+  Stack,
+  Divider,
 } from '@chakra-ui/react';
 import { v4 as uuidv4 } from 'uuid';
 import { NewObject, UpdateObject } from 'src/types';
@@ -23,6 +26,7 @@ import MarkdownEditor from 'src/components/mardown/MardownEditor';
 import { normalizeToIdStyle } from 'src/utils/text';
 import authService from 'src/services/authService';
 import AliasInput from './AliasInput';
+import { FaGithub, FaTwitter, FaDiscord, FaLink } from 'react-icons/fa';
 
 interface ObjectFormProps {
   isOpen: boolean;
@@ -52,6 +56,39 @@ const ObjectForm: React.FC<ObjectFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const toast = useToast();
+
+  const [github, setGithub] = useState('');
+  const [twitter, setTwitter] = useState('');
+  const [discord, setDiscord] = useState('');
+  const [link, setLink] = useState('');
+
+  const addSocialAlias = (type: string, value: string) => {
+    if (!value) return;
+    let newAlias = value.trim();
+    if (
+      type === 'github' &&
+      !newAlias.startsWith('http') &&
+      !newAlias.startsWith('github:')
+    ) {
+      newAlias = `https://github.com/${newAlias}`;
+    }
+    if (
+      type === 'twitter' &&
+      !newAlias.startsWith('http') &&
+      !newAlias.startsWith('twitter:')
+    ) {
+      newAlias = `https://twitter.com/${newAlias}`;
+    }
+
+    if (!aliases.includes(newAlias)) {
+      setAliases([...aliases, newAlias]);
+      setIsDirty(true);
+    }
+    if (type === 'github') setGithub('');
+    if (type === 'twitter') setTwitter('');
+    if (type === 'discord') setDiscord('');
+    if (type === 'link') setLink('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -194,9 +231,10 @@ const ObjectForm: React.FC<ObjectFormProps> = ({
               <FormControl>
                 <FormLabel>Aliases</FormLabel>
                 <FormHelperText mb={2}>
-                  Alternative names, email for this object. Type and press Enter
-                  to add multiple aliases. This is useful to identify object
-                  when merging data from multiple sources.
+                  Alternative names, email, links, GitHub, Twitter, Discord for
+                  this object. Type and press Enter to add multiple aliases.
+                  This is useful to identify object when merging data from
+                  multiple sources.
                 </FormHelperText>
                 <AliasInput
                   value={aliases}
@@ -205,6 +243,86 @@ const ObjectForm: React.FC<ObjectFormProps> = ({
                     setAliases(newAliases);
                   }}
                 />
+              </FormControl>
+
+              <Divider my={4} />
+
+              <FormControl>
+                <FormLabel>Quick Add Socials</FormLabel>
+                <Stack spacing={3}>
+                  <InputGroup>
+                    <InputLeftElement
+                      pointerEvents='none'
+                      children={<FaLink color='gray' />}
+                    />
+                    <Input
+                      placeholder='Add Link (URL)'
+                      value={link}
+                      onChange={(e) => setLink(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addSocialAlias('link', link);
+                        }
+                      }}
+                      onBlur={() => addSocialAlias('link', link)}
+                    />
+                  </InputGroup>
+                  <InputGroup>
+                    <InputLeftElement
+                      pointerEvents='none'
+                      children={<FaGithub color='gray' />}
+                    />
+                    <Input
+                      placeholder='GitHub username or URL'
+                      value={github}
+                      onChange={(e) => setGithub(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addSocialAlias('github', github);
+                        }
+                      }}
+                      onBlur={() => addSocialAlias('github', github)}
+                    />
+                  </InputGroup>
+                  <InputGroup>
+                    <InputLeftElement
+                      pointerEvents='none'
+                      children={<FaTwitter color='gray' />}
+                    />
+                    <Input
+                      placeholder='Twitter username or URL'
+                      value={twitter}
+                      onChange={(e) => setTwitter(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addSocialAlias('twitter', twitter);
+                        }
+                      }}
+                      onBlur={() => addSocialAlias('twitter', twitter)}
+                    />
+                  </InputGroup>
+                  <InputGroup>
+                    <InputLeftElement
+                      pointerEvents='none'
+                      children={<FaDiscord color='gray' />}
+                    />
+                    <Input
+                      placeholder='Discord handle'
+                      value={discord}
+                      onChange={(e) => setDiscord(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addSocialAlias('discord', discord);
+                        }
+                      }}
+                      onBlur={() => addSocialAlias('discord', discord)}
+                    />
+                  </InputGroup>
+                </Stack>
               </FormControl>
               <FormControl>
                 <FormLabel>Description</FormLabel>

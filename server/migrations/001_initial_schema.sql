@@ -76,7 +76,8 @@ CREATE TABLE obj_type (
     fields JSONB NOT NULL,
     creator_id UUID NOT NULL REFERENCES creator(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP WITH TIME ZONE
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    is_public BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 -- Create the funnel table

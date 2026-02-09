@@ -8,6 +8,7 @@ import { ObjectObjectType } from './types/object';
 import { ImageObjectType } from './types/image';
 import { SmartObjectTypeValue } from './components/SmartObjectTypeValue';
 import { YesNoObjectType } from './types/yesno';
+import { StringObjectType } from './types/string';
 
 ObjectTypeRegistryInstance.register(NumberObjectType);
 ObjectTypeRegistryInstance.register(PercentageObjectType);
@@ -15,5 +16,6 @@ ObjectTypeRegistryInstance.register(DateTimeObjectType);
 ObjectTypeRegistryInstance.register(ObjectObjectType);
 ObjectTypeRegistryInstance.register(ImageObjectType);
 ObjectTypeRegistryInstance.register(YesNoObjectType);
+ObjectTypeRegistryInstance.register(StringObjectType);
 
 export { SmartObjectFormField, SmartObjectForm, SmartObjectTypeValue };

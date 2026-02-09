@@ -23,7 +23,7 @@ export const STORAGE_KEYS = {
   PER_PAGE: 'globalData_perPage',
 } as const;
 
-const CACHE_VERSION = '1.0'; // Increment this when data structure changes
+const CACHE_VERSION = '1.1'; // Increment this when data structure changes
 // Cache duration increased to 10 minutes
 const CACHE_DURATION = 10 * 60 * 1000;
 // Summary refresh interval remains at 1 minute
@@ -166,7 +166,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const members = await listOrgMembers();
       const newData = {
-        members,
+        members: members || [],
         lastUpdated: Date.now(),
       };
 
@@ -184,7 +184,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await listObjectTypes({ page: 1, pageSize: 100 });
       const newData = {
-        objectTypes: response.objectTypes,
+        objectTypes: response.objectTypes || [],
         lastUpdated: Date.now(),
       };
 
@@ -207,7 +207,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({
         };
         if (!tags) {
           const response = await listTags({ page: 1, pageSize: 100 });
-          newData.tags = response.tags;
+          newData.tags = response.tags || [];
         } else {
           newData.tags = tags;
         }
@@ -236,7 +236,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await fetchAllFunnels(1, 100);
       const newData = {
-        funnels: response.funnels,
+        funnels: response.funnels || [],
         lastUpdated: Date.now(),
       };
 

@@ -10,6 +10,8 @@ export interface CreateObjectTypeParams {
   description: string;
   fields: Record<string, any>;
   icon: string;
+  is_public?: boolean;
+  gdp_measure_field?: string;
 }
 
 export interface UpdateObjectTypeParams {
@@ -17,6 +19,8 @@ export interface UpdateObjectTypeParams {
   description: string;
   fields: Record<string, any>;
   icon: string;
+  is_public?: boolean;
+  gdp_measure_field?: string;
 }
 
 export interface ListObjectTypesParams {
@@ -94,6 +98,39 @@ export interface AdvancedFilterParams {
   search: string;
   sortOrder: 'asc' | 'desc';
 }
+
+export interface GrantAccessParams {
+  creator_id: string;
+  obj_type_id: string;
+}
+
+export interface RevokeAccessParams {
+  creator_id: string;
+  obj_type_id: string;
+}
+
+export const grantAccessToObjectType = async (
+  params: GrantAccessParams
+): Promise<void> => {
+  await axios.post(`${API_URL}/setting/object-types/access`, params);
+};
+
+export const revokeAccessToObjectType = async (
+  params: RevokeAccessParams
+): Promise<void> => {
+  await axios.delete(
+    `${API_URL}/setting/object-types/access/${params.creator_id}/${params.obj_type_id}`
+  );
+};
+
+export const getAccessibleObjectTypesForMember = async (
+  creatorId: string
+): Promise<ObjectType[]> => {
+  const response = await axios.get(
+    `${API_URL}/setting/object-types/access/${creatorId}`
+  );
+  return response.data;
+};
 
 export interface FetchObjectsByTypeResponse {
   objects: ObjectWithTags[];

@@ -32,7 +32,7 @@ export const ActionConfigForm = ({
             });
           }}
           availableTags={
-            globalData?.tagData?.tags.filter(
+            globalData?.tagData?.tags?.filter(
               (t) => !excludeTagIds?.includes(t.id)
             ) || []
           }
@@ -53,7 +53,7 @@ export const ActionConfigForm = ({
           isDisabled={isLoading}
         >
           <option value={undefined}>Select funnel</option>
-          {globalData?.funnelData?.funnels.map((funnel) => (
+          {globalData?.funnelData?.funnels?.map((funnel) => (
             <option key={funnel.id} value={funnel.id}>
               {funnel.name}
             </option>

@@ -91,7 +91,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   );
 
   const handleMentionTrigger = useCallback(() => {
-    openSpotLight(filters, () => handleSpotLightSelect);
+    openSpotLight(filters, handleSpotLightSelect);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openSpotLight, value, handleValueChange]);
 

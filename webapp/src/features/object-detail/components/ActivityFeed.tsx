@@ -180,7 +180,7 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = () => {
 };
 
 export const CreateActivityButton = () => {
-  const { object, refresh } = useObjectDetail();
+  const { object, refresh, isReadOnly } = useObjectDetail();
   const {
     isOpen: isOpenNewActivityDialog,
     onOpen: onOpenNewActivityDialog,
@@ -206,7 +206,7 @@ export const CreateActivityButton = () => {
   };
   return (
     <>
-      <FaPlus onClick={onOpenNewActivityDialog} />
+      {!isReadOnly && <FaPlus onClick={onOpenNewActivityDialog} />}
       <Modal
         isOpen={isOpenNewActivityDialog}
         onClose={() => {

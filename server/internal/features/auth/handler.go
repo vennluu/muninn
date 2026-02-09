@@ -39,13 +39,13 @@ func (h *Handler) RegisterRoutes(r chi.Router, wrapWithFeed func(http.HandlerFun
 }
 
 /* auth route */
-func (h *Handler) SignUp(w http.ResponseWriter, r *http.Request){
+func (h *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
 	var req SignUpRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	_, err := h.s.SignUp(r.Context(), req.OrgName, req.Password, req.Username);
+	_, err := h.s.SignUp(r.Context(), req.OrgName, req.Username, req.Password)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -126,7 +126,7 @@ func (h *Handler) AddNewOrgCreator(w http.ResponseWriter, r *http.Request) {
 
 /* creator profile */
 func (h *Handler) UpdateCreatorRoleAndStatus(w http.ResponseWriter, r *http.Request) {
-	userIDString := chi.URLParam(r, "userID");
+	userIDString := chi.URLParam(r, "userID")
 	UserID := uuid.MustParse(userIDString)
 	var req UpdateCreatorRoleAndStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -144,7 +144,7 @@ func (h *Handler) UpdateCreatorRoleAndStatus(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *Handler) UpdateCreatorPassword(w http.ResponseWriter, r *http.Request) {
-	userIDString := chi.URLParam(r, "userID");
+	userIDString := chi.URLParam(r, "userID")
 	UserID := uuid.MustParse(userIDString)
 	var req UpdateCreatorPasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -161,7 +161,7 @@ func (h *Handler) UpdateCreatorPassword(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *Handler) UpdateCreatorProfile(w http.ResponseWriter, r *http.Request) {
-	userIDString := chi.URLParam(r, "userID");
+	userIDString := chi.URLParam(r, "userID")
 	UserID := uuid.MustParse(userIDString)
 	var req UpdateCreatorProfileRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

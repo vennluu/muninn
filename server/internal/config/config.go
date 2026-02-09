@@ -13,10 +13,8 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
-	err := godotenv.Load()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load .env file: %v", err)
-	}
+	_ = godotenv.Load() // Ignore error if .env file is missing
+	
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL environment variable is not set")

@@ -17,7 +17,7 @@ export const StepCountsDisplay: React.FC<StepCountsDisplayProps> = ({
   funnelStepFilter,
 }) => {
   const { globalData } = useGlobalContext();
-  const funnel = globalData?.funnelData?.funnels.find(
+  const funnel = globalData?.funnelData?.funnels?.find(
     (f) => f.id === funnelStepFilter.funnelId
   );
   const { filterConfig, updateFilter } = useAdvancedFilter();

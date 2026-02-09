@@ -34,11 +34,19 @@ import {
   Select,
   Flex,
   Text,
+  Switch,
+  ModalFooter,
 } from '@chakra-ui/react';
 import BreadcrumbComponent from 'src/components/Breadcrumb';
 import { addNewOrgMember, listOrgMembers, updateUserPassword } from 'src/api';
+import {
+  listObjectTypes,
+  getAccessibleObjectTypesForMember,
+  grantAccessToObjectType,
+  revokeAccessToObjectType,
+} from 'src/api/objType';
 import authService from 'src/services/authService';
-import { OrgMember } from 'src/types/Org';
+import { OrgMember, ObjectType } from 'src/types';
 import { ChevronDownIcon, CopyIcon } from '@chakra-ui/icons';
 import { normalise, generateRandomPassword } from 'src/utils';
 import ActivityHeatmap from 'src/components/ActivityHeatmap';
@@ -105,6 +113,11 @@ const OrganisationPage: React.FC = () => {
     isOpen: isOpenChangePasswordDialog,
     onOpen: onOpenChangePasswordDialog,
     onClose: onCloseChangePasswordDialog,
+  } = useDisclosure();
+  const {
+    isOpen: isOpenManageAccessDialog,
+    onOpen: onOpenManageAccessDialog,
+    onClose: onCloseManageAccessDialog,
   } = useDisclosure();
   useEffect(() => {
     handleLoadPage();
@@ -202,6 +215,14 @@ const OrganisationPage: React.FC = () => {
                         >
                           Change Password
                         </MenuItem>
+                        <MenuItem
+                          onClick={() => {
+                            setCurrentEditingUserId(member.id);
+                            onOpenManageAccessDialog();
+                          }}
+                        >
+                          Manage Access
+                        </MenuItem>
                         <MenuItem isDisabled={true}>Active / Deactive</MenuItem>
                         <MenuItem isDisabled={true}>Update Role</MenuItem>
                       </MenuList>
@@ -267,6 +288,16 @@ const OrganisationPage: React.FC = () => {
         isOpen={isOpenChangePasswordDialog}
         onClose={onCloseChangePasswordDialog}
         submit={handleUpdateUserPassword}
+      />
+      <ManageAccessDialog
+        isOpen={isOpenManageAccessDialog}
+        onClose={onCloseManageAccessDialog}
+        memberId={currentEditingUserId}
+        memberName={
+          members.find((m) => m.id === currentEditingUserId)?.profile?.fullname ||
+          members.find((m) => m.id === currentEditingUserId)?.username ||
+          ''
+        }
       />
     </Box>
   );
@@ -516,6 +547,118 @@ const ChangePasswordDialog = ({
             </Button>
           </HStack>
         </ModalBody>
+      </ModalContent>
+    </Modal>
+  );
+};
+
+interface ManageAccessDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  memberId: string;
+  memberName: string;
+}
+
+const ManageAccessDialog = ({
+  isOpen,
+  onClose,
+  memberId,
+  memberName,
+}: ManageAccessDialogProps) => {
+  const [objectTypes, setObjectTypes] = useState<ObjectType[]>([]);
+  const [accessibleIds, setAccessibleIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(false);
+  const toast = useToast();
+
+  useEffect(() => {
+    if (isOpen && memberId) {
+      loadData();
+    }
+  }, [isOpen, memberId]);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [allTypes, accessibleTypes] = await Promise.all([
+        listObjectTypes({ page: 1, pageSize: 100 }),
+        getAccessibleObjectTypesForMember(memberId),
+      ]);
+      setObjectTypes(allTypes.objectTypes);
+      setAccessibleIds(new Set(accessibleTypes.map((t) => t.id)));
+    } catch (error) {
+      toast({
+        title: 'Error loading data',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggle = async (typeId: string, isGranted: boolean) => {
+    try {
+      if (isGranted) {
+        await revokeAccessToObjectType({
+          creator_id: memberId,
+          obj_type_id: typeId,
+        });
+        setAccessibleIds((prev) => {
+          const next = new Set(prev);
+          next.delete(typeId);
+          return next;
+        });
+      } else {
+        await grantAccessToObjectType({
+          creator_id: memberId,
+          obj_type_id: typeId,
+        });
+        setAccessibleIds((prev) => {
+          const next = new Set(prev);
+          next.add(typeId);
+          return next;
+        });
+      }
+    } catch (e) {
+      toast({
+        title: 'Failed to update access',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size='lg'>
+      <ModalOverlay />
+      <ModalContent>
+        <ModalHeader>Manage Access for {memberName}</ModalHeader>
+        <ModalBody>
+          {loading ? (
+            <Flex justify='center' align='center' p={4}>
+              <Text>Loading...</Text>
+            </Flex>
+          ) : (
+            <VStack align='stretch' spacing={3} maxH='60vh' overflowY='auto'>
+              {objectTypes.map((type) => (
+                <HStack key={type.id} justify='space-between' p={2} borderWidth={1} borderRadius='md'>
+                  <Text>{type.name}</Text>
+                  <Switch
+                    isChecked={accessibleIds.has(type.id)}
+                    onChange={() =>
+                      handleToggle(type.id, accessibleIds.has(type.id))
+                    }
+                  />
+                </HStack>
+              ))}
+            </VStack>
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button onClick={onClose}>Close</Button>
+        </ModalFooter>
       </ModalContent>
     </Modal>
   );

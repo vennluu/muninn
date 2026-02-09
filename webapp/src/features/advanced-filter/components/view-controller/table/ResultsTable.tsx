@@ -62,10 +62,13 @@ const getCellValue = (
     const itemTypeValues = item.type_values?.find(
       (tv: any) => tv.objectTypeId === column.objectTypeId
     );
+    const objectType = typeValues.find((t) => t.id === column.objectTypeId);
+    if (!objectType) {
+      return null;
+    }
+    
     let dataType =
-      typeValues.find((t) => t.id === column.objectTypeId).fields[
-        column.field
-      ] || 'string';
+      objectType.fields?.[column.field] || 'string';
     dataType = typeof dataType === 'string' ? dataType : dataType.type;
     return (
       <SmartObjectTypeValue
@@ -74,6 +77,11 @@ const getCellValue = (
           type: dataType,
         }}
         value={itemTypeValues?.type_values[column.field]}
+        onClick={(obj: any) => {
+          if (obj && obj.id) {
+            window.location.assign(`/objects/${obj.id}`);
+          }
+        }}
       />
     );
   }

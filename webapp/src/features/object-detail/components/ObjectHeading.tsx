@@ -19,7 +19,7 @@ import { UpdateObject } from 'src/types';
 import { useHistory } from 'react-router-dom';
 
 export const ObjectHeading: React.FC = () => {
-  const { object, imgUrls, refresh } = useObjectDetail();
+  const { object, imgUrls, refresh, isReadOnly } = useObjectDetail();
   const stepsAndFunnels = object?.stepsAndFunnels || [];
   const steps = stepsAndFunnels.map((step) => step.stepName) || [];
   const tags = object?.tags || [];
@@ -76,18 +76,22 @@ export const ObjectHeading: React.FC = () => {
             </Box>
             <Text
               textDecoration={'underline'}
-              onClick={() => history.push('/objects/' + object.id)}
-              cursor={'pointer'}
-              _hover={{ color: 'blue.500' }}
+              onClick={() => {
+                if (!isReadOnly) history.push('/objects/' + object.id);
+              }}
+              cursor={isReadOnly ? 'default' : 'pointer'}
+              _hover={isReadOnly ? {} : { color: 'blue.500' }}
             >
               {object?.name}
             </Text>
-            <EditIcon
-              fontSize='x-large'
-              cursor={'pointer'}
-              onClick={() => setShowEditObject(true)}
-              _hover={{ color: 'blue.500' }}
-            />
+            {!isReadOnly && (
+              <EditIcon
+                fontSize='x-large'
+                cursor={'pointer'}
+                onClick={() => setShowEditObject(true)}
+                _hover={{ color: 'blue.500' }}
+              />
+            )}
           </HStack>
         </Heading>
       </HStack>

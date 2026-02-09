@@ -23,16 +23,19 @@ import {
 import { TaskStatus } from 'src/types';
 import { TagInput } from './components/TagInput';
 
-const ObjectDetailPanel: React.FC<{ objectId: string }> = ({ objectId }) => {
+const ObjectDetailPanel: React.FC<{ objectId: string; orgId?: string }> = ({
+  objectId,
+  orgId,
+}) => {
   return (
-    <ObjectDetailProvider objectId={objectId}>
+    <ObjectDetailProvider objectId={objectId} orgId={orgId}>
       <ObjectDetailContent />
     </ObjectDetailProvider>
   );
 };
 
 const ObjectDetailContent: React.FC = () => {
-  const { object, facts, tasks, isLoading, tabIndex, setTabIndex } =
+  const { object, facts, tasks, isLoading, tabIndex, setTabIndex, isReadOnly } =
     useObjectDetail();
   const countTask = tasks.filter(
     (task) => task.status !== TaskStatus.COMPLETED
@@ -62,7 +65,7 @@ const ObjectDetailContent: React.FC = () => {
               {countTask}
             </Badge>
           )}
-          <CreateTaskButton />
+          {!isReadOnly && <CreateTaskButton />}
         </>
       ),
       content: <TaskPanel />,
@@ -76,7 +79,7 @@ const ObjectDetailContent: React.FC = () => {
               {countActivity}
             </Badge>
           )}
-          <CreateActivityButton />
+          {!isReadOnly && <CreateActivityButton />}
         </>
       ),
       content: <ActivityFeed />,
@@ -90,7 +93,7 @@ const ObjectDetailContent: React.FC = () => {
               {countFunnel}
             </Badge>
           )}
-          <CreateFunnelStepButton />
+          {!isReadOnly && <CreateFunnelStepButton />}
         </>
       ),
       content: <FunnelPanel />,
@@ -104,7 +107,7 @@ const ObjectDetailContent: React.FC = () => {
               {countDetail}
             </Badge>
           )}
-          <CreateObjectTypeValueButton />
+          {!isReadOnly && <CreateObjectTypeValueButton />}
         </>
       ),
       content: <ObjectTypePanel />,

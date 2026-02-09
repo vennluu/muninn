@@ -63,7 +63,7 @@ const ViewsPage: React.FC = () => {
 
   useEffect(() => {
     loadViews();
-    const member = globalData?.memberData?.members.find(
+    const member = globalData?.memberData?.members?.find(
       (m) => m.id === authService.getCreatorId()
     );
     setBookmarkViews(member?.profile.views || []);
@@ -71,7 +71,7 @@ const ViewsPage: React.FC = () => {
   }, [foredRefresh]);
 
   const handleBookmarkClick = async (viewId: string) => {
-    const member = globalData?.memberData?.members.find(
+    const member = globalData?.memberData?.members?.find(
       (m) => m.id === authService.getCreatorId()
     );
     const found = bookmarkViews.find((v) => v.id === viewId);

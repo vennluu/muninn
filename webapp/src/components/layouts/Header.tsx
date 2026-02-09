@@ -57,7 +57,7 @@ const Header: React.FC = () => {
         SpotLightFilter.CREATOR,
         SpotLightFilter.TASK,
       ],
-      () => handleObjectClick
+      handleObjectClick
     );
   };
 

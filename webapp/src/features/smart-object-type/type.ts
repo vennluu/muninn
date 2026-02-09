@@ -13,6 +13,7 @@ interface BaseTypeProps<TValidation> {
 // Props for Display component
 interface DisplayProps<TValue, TValidation> extends BaseTypeProps<TValidation> {
   value: TValue;
+  onClick?: (value: any) => void;
 }
 
 // Props for Input component

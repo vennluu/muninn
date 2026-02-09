@@ -40,15 +40,15 @@ export const SpotLightProvider: React.FC<{ children: React.ReactNode }> = ({
     'creator',
   ]);
   const [activeFilter, setActiveFilter] = useState<SearchFilter>('object');
-  const [fcallback, setCallback] = useState<any>((payload: any) => {});
+  const [fcallback, setCallback] = useState<any>(null);
 
   const openSpotLight = useCallback(
     (newFilters?: SearchFilter[], callback?: any) => {
       setIsOpen(true);
       if (!callback) {
-        setCallback((payload: any) => {});
+        setCallback(null);
       } else {
-        setCallback(callback);
+        setCallback(() => callback);
       }
       if (newFilters) {
         setFilters(newFilters);

@@ -15,10 +15,18 @@ import { FaPlus } from 'react-icons/fa';
 
 export const ObjectTypePanel: React.FC = () => {
   const { globalData } = useGlobalContext();
-  const { object, refresh } = useObjectDetail();
+  const { object, refresh, isReadOnly } = useObjectDetail();
   const objectId = object?.id;
   const objectTypes = object?.typeValues || [];
-  const availableTypes = globalData?.objectTypeData?.objectTypes || [];
+  
+  // Combine object-specific types and global types to ensure we can display types from other orgs
+  // even when logged in (not ReadOnly). Prioritize object types.
+  const availableTypes = React.useMemo(() => {
+    const globalTypes = globalData?.objectTypeData?.objectTypes || [];
+    const objTypes = object?.types || [];
+    return [...objTypes, ...globalTypes];
+  }, [globalData, object]);
+
   const {
     isOpen: isEditOpen,
     onOpen: onEditOpen,
@@ -33,11 +41,12 @@ export const ObjectTypePanel: React.FC = () => {
 
   const handleClickObjectCard = useCallback(
     (objectType: ObjectType, objectTypeValue: ObjectTypeValue) => {
+      if (isReadOnly) return;
       setCurrentObjectTypeValue(objectTypeValue);
       setCurrentObjectType(objectType);
       onEditOpen();
     },
-    [onEditOpen]
+    [onEditOpen, isReadOnly]
   );
 
   const handleCloseEditModal = useCallback(() => {
@@ -111,7 +120,7 @@ export const CreateObjectTypeValueButton = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { globalData } = useGlobalContext();
   const availableTypes = globalData?.objectTypeData?.objectTypes || [];
-  const { object, refresh } = useObjectDetail();
+  const { object, refresh, isReadOnly } = useObjectDetail();
   const objectId = object?.id;
   const objectTypes = object?.typeValues || [];
   const toast = useToast();
@@ -119,28 +128,29 @@ export const CreateObjectTypeValueButton = () => {
     try {
       await addObjectTypeValue(objectId, payload);
       onClose();
-      toast({
-        title: 'Object type added',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-    } catch (error) {
-      toast({
-        title: 'Error adding object type',
-        description:
-          typeof error === 'string' ? error : 'Please try again later.',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    } finally {
+              toast({
+                title: 'Object type added',
+                status: 'success',
+                duration: 3000,
+                isClosable: true,
+              });
+            } catch (error) {
+              console.error('Error adding object type:', error);
+              toast({
+                title: 'Error adding object type',
+                description:
+                  typeof error === 'string' ? error : (error as any)?.message || 'Please try again later.',
+                status: 'error',
+                duration: 5000,
+                isClosable: true,
+              });
+            } finally {
       refresh();
     }
   };
   return (
     <>
-      <FaPlus onClick={onOpen} />
+      {!isReadOnly && <FaPlus onClick={onOpen} />}
       <AddObjectTypeValueModal
         isOpen={isOpen}
         onClose={onClose}

@@ -1,50 +1,113 @@
-# Introduction
+# Muninn - Personal CRM & Data Management
 
-This is the CRM project that employ two important concepts that most CRM is missing or underserved:
+Muninn là một ứng dụng quản lý dữ liệu cá nhân (CRM) bao gồm Backend (Go) và Frontend (React).
 
-- One generic object can existed in multiple object type form. For example, a human can be both a developer, an entrepreneur and an artist. A team can both run a startup and a hackathon project.
-- Operation team works evolve around moving objects in funnels. The funnel can be sale conversion, hackathon submission, etc.
-- Within a team, data is shared while data view (saved filters) is personalized.
+## 📋 Yêu cầu hệ thống (Prerequisites)
 
-This is the bird eye view design
-![System design](https://i.imgur.com/tqMJ6uyl.png)
+Trước khi cài đặt, hãy đảm bảo máy bạn đã cài đặt:
 
-## Structure
+- **Go**: Phiên bản 1.23 trở lên ([Tải về](https://go.dev/dl/))
+- **Node.js**: Phiên bản 16 trở lên & npm ([Tải về](https://nodejs.org/))
+- **PostgreSQL**: Cơ sở dữ liệu ([Tải về](https://www.postgresql.org/download/))
 
-This project use mono-repo approach. There are 2 project
+---
 
-- server, using go lang
-- webapp, using reactjs
+## 🚀 Cài đặt & Chạy ứng dụng
 
-## How to install?
+### 1. Clone Source Code
 
-### Server
-
-- [ ] Step 1: Install [Postgresql](https://hub.docker.com/_/postgres)
-- [ ] Step 2: Run `server/migrations/001_intial_schema.sql`
-- [ ] Step 3: Install `go`
-- [ ] Step 4: Create .env
-
-```env
-DATABASE_URL=postgres://[user name]:[password]@[host]:[port]/[db name]?sslmode=disable
-JWT_SECRET=[your secret]
-PORT=[port | 8080]
+```bash
+git clone https://github.com/crea8r/muninn.git
+cd muninn
 ```
 
-- [ ] Step 5: run `server/.start-web.sh`
-- [ ] Step 6: Test with `[your server| http://localhost:8080]/stats`
+### 2. Cấu hình Database (PostgreSQL)
 
-### Webapp
+1. Tạo database mới tên là `muninn` trong PostgreSQL.
+2. Chạy file migration để tạo bảng dữ liệu:
+   
+   Dùng tool quản lý DB (như DBeaver, pgAdmin) hoặc dòng lệnh để chạy file SQL tại:
+   `server/migrations/001_initial_schema.sql`
 
-- [ ] Step 1: Install packages: `npm i`
-- [ ] Step 2: Create .env file
+### 3. Cài đặt & Chạy Backend (Server)
 
-```env
-REACT_APP_API_URL=[your server | http://localhost:8080]
+Di chuyển vào thư mục server:
+
+```bash
+cd server
 ```
 
-- [ ] Step 3: Run `npm start`
+Tạo file `.env` từ cấu hình mẫu:
 
-### How big is the project?
+```bash
+# Tạo file .env
+touch .env
+```
 
-Run this command `git ls-files --exclude-standard -- ':!:**/*.[pjs][npv]g' ':!:**/*.ai' ':!:.idea' ':!:**/*.eslintrc' ':!:*.json' ':!:**/*.sql.go' | xargs wc -l`
+Mở file `.env` và điền thông tin cấu hình (ví dụ):
+
+```env
+DATABASE_URL=postgres://user:password@localhost:5432/muninn?sslmode=disable
+JWT_SECRET=your_super_secret_key
+PORT=8080
+```
+*(Thay `user`, `password` bằng thông tin PostgreSQL của bạn)*
+
+Cài đặt dependencies và chạy server:
+
+```bash
+# Tải thư viện
+go mod tidy
+
+# Chạy server
+./start-web.sh
+# Hoặc: go run cmd/api/main.go
+```
+Backend sẽ chạy tại: `http://localhost:8080`
+
+### 4. Cài đặt & Chạy Frontend (Webapp)
+
+Mở một terminal mới, di chuyển vào thư mục webapp:
+
+```bash
+cd webapp
+```
+
+Tạo file `.env`:
+
+```bash
+touch .env
+```
+
+Nội dung file `.env` cho Frontend:
+
+```env
+PORT=3000
+REACT_APP_API_URL=http://localhost:8080
+```
+
+Cài đặt và chạy:
+
+```bash
+# Cài đặt thư viện
+npm install
+
+# Chạy ứng dụng
+npm start
+```
+Frontend sẽ chạy tại: `http://localhost:3000`
+
+---
+
+## 🛠 Cấu trúc dự án
+
+- **/server**: Mã nguồn Backend (Golang, Chi Router, SQLC).
+- **/webapp**: Mã nguồn Frontend (ReactJS, TypeScript, Chakra UI).
+- **/sql**: Các file SQL mẫu và dữ liệu test.
+
+## 📝 API Documentation
+
+API backend chạy tại `http://localhost:8080`.
+Các endpoints chính:
+- `/api/health`: Kiểm tra trạng thái server.
+- `/api/v1/...`: Các API dữ liệu chính.

@@ -47,7 +47,8 @@ type ObjectArrayValue = Array<{
 const ObjectTag: React.FC<{
   object: { id: string; name: string; description?: string };
   onRemove?: () => void;
-}> = ({ object, onRemove }) => (
+  onClick?: () => void;
+}> = ({ object, onRemove, onClick }) => (
   <Tag
     size='md'
     borderRadius='full'
@@ -55,13 +56,20 @@ const ObjectTag: React.FC<{
     colorScheme='blue'
     _hover={{ background: 'blue.200', color: 'gray.700' }}
     title={object.description}
+    onClick={(e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (onClick) {
+        console.log('ObjectTag: Custom onClick called');
+        onClick();
+      } else {
+        console.log('ObjectTag: Default window.open called');
+        window.open(`/objects/${object.id}`, '_blank');
+      }
+    }}
+    cursor={'pointer'}
   >
-    <TagLabel
-      onClick={() => window.open(`/objects/${object.id}`, '_blank')}
-      cursor={'pointer'}
-    >
-      {object.name}
-    </TagLabel>
+    <TagLabel>{object.name}</TagLabel>
     {onRemove && <TagCloseButton onClick={onRemove} />}
   </Tag>
 );
@@ -69,7 +77,8 @@ const ObjectTag: React.FC<{
 const ObjectDisplay: React.FC<{
   value: ObjectValue | ObjectArrayValue;
   validation?: ObjectValidation;
-}> = ({ value, validation }) => {
+  onClick?: (value: any) => void;
+}> = ({ value, validation, onClick }) => {
   if (!value) return null;
   if (value && typeof value === 'string') {
     // backward compatibility
@@ -85,13 +94,22 @@ const ObjectDisplay: React.FC<{
     return (
       <HStack spacing={2} wrap='wrap'>
         {value.map((obj) => (
-          <ObjectTag key={obj.id} object={obj} />
+          <ObjectTag
+            key={obj.id}
+            object={obj}
+            onClick={onClick ? () => onClick(obj) : undefined}
+          />
         ))}
       </HStack>
     );
   }
   if (value && typeof value === 'object') {
-    return <ObjectTag object={value} />;
+    return (
+      <ObjectTag
+        object={value}
+        onClick={onClick ? () => onClick(value) : undefined}
+      />
+    );
   }
   return null;
 };
@@ -140,7 +158,7 @@ const ObjectInput: React.FC<{
   );
 
   const handleOpenSpotLight = () => {
-    openSpotLight(['object'], () => handleSpotLightSelect);
+    openSpotLight(['object'], handleSpotLightSelect);
   };
 
   const handleRemove = (objectId: string) => {
@@ -169,6 +187,7 @@ const ObjectInput: React.FC<{
                   key={obj.id}
                   object={obj}
                   onRemove={() => handleRemove(obj.id)}
+                  onClick={handleOpenSpotLight}
                 />
               ))
             : value &&
@@ -177,6 +196,7 @@ const ObjectInput: React.FC<{
                 <ObjectTag
                   object={value}
                   onRemove={() => handleRemove(value.id)}
+                  onClick={handleOpenSpotLight}
                 />
               )}
         </HStack>

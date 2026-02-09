@@ -20,55 +20,55 @@ type TaskHandler struct {
 }
 
 type BasicObject struct {
-	ID uuid.UUID `json:"id"`
-	Name string `json:"name"`
-	Description string `json:"description"`
+	ID          uuid.UUID `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
 }
 
 type ResponseTask struct {
-	ID          uuid.UUID     `json:"id"`
-	Content     string        `json:"content"`
-	Deadline    ctype.NullTime  `json:"deadline"`
-	RemindAt    ctype.NullTime  `json:"remindAt"`
-	Status      string        `json:"status"`
-	CreatorID   uuid.UUID     `json:"creatorId"`
-	AssignedID  ctype.NullUUID `json:"assignedId"`
-	ParentID    ctype.NullUUID `json:"parentId"`
-	CreatedAt   time.Time     `json:"createdAt"`
-	LastUpdated time.Time     `json:"lastUpdated"`
-	DeletedAt   ctype.NullTime  `json:"deletedAt"`
-	CreatorName string        `json:"creatorName"`
-	AssignedName string       `json:"assignedName"`
-	Objects []BasicObject	 `json:"objects"`
+	ID           uuid.UUID      `json:"id"`
+	Content      string         `json:"content"`
+	Deadline     ctype.NullTime `json:"deadline"`
+	RemindAt     ctype.NullTime `json:"remindAt"`
+	Status       string         `json:"status"`
+	CreatorID    uuid.UUID      `json:"creatorId"`
+	AssignedID   ctype.NullUUID `json:"assignedId"`
+	ParentID     ctype.NullUUID `json:"parentId"`
+	CreatedAt    time.Time      `json:"createdAt"`
+	LastUpdated  time.Time      `json:"lastUpdated"`
+	DeletedAt    ctype.NullTime `json:"deletedAt"`
+	CreatorName  string         `json:"creatorName"`
+	AssignedName string         `json:"assignedName"`
+	Objects      []BasicObject  `json:"objects"`
 }
 
 func ConvertTask(task database.Task) ResponseTask {
 	responseTask := ResponseTask{
-		ID:          task.ID,
-		Content:     task.Content,
-		Deadline:    ctype.NullTime{NullTime: task.Deadline},
-		RemindAt:    ctype.NullTime{NullTime: task.RemindAt},
-		Status:      task.Status,
-		CreatorID:   task.CreatorID,
-		AssignedID:  ctype.NullUUID{NullUUID: task.AssignedID},
-		ParentID:    ctype.NullUUID{NullUUID: task.ParentID},
-		CreatedAt:   task.CreatedAt,
-		DeletedAt:	 ctype.NullTime{NullTime: task.DeletedAt},
+		ID:         task.ID,
+		Content:    task.Content,
+		Deadline:   ctype.NullTime{NullTime: task.Deadline},
+		RemindAt:   ctype.NullTime{NullTime: task.RemindAt},
+		Status:     task.Status,
+		CreatorID:  task.CreatorID,
+		AssignedID: ctype.NullUUID{NullUUID: task.AssignedID},
+		ParentID:   ctype.NullUUID{NullUUID: task.ParentID},
+		CreatedAt:  task.CreatedAt,
+		DeletedAt:  ctype.NullTime{NullTime: task.DeletedAt},
 	}
 	return responseTask
 }
 
 func ConvertListRowTask(task database.ListTasksByOrgIDRow) ResponseTask {
 	responseTask := ResponseTask{
-		ID:          task.ID,
-		Content:     task.Content,
-		Deadline:    ctype.NullTime{NullTime: task.Deadline},
-		RemindAt:    ctype.NullTime{NullTime: task.RemindAt},
-		Status:      task.Status,
-		CreatorID:   task.CreatorID,
-		AssignedID:  ctype.NullUUID{NullUUID: task.AssignedID},
-		ParentID:    ctype.NullUUID{NullUUID: task.ParentID},
-		CreatedAt:   task.CreatedAt,
+		ID:         task.ID,
+		Content:    task.Content,
+		Deadline:   ctype.NullTime{NullTime: task.Deadline},
+		RemindAt:   ctype.NullTime{NullTime: task.RemindAt},
+		Status:     task.Status,
+		CreatorID:  task.CreatorID,
+		AssignedID: ctype.NullUUID{NullUUID: task.AssignedID},
+		ParentID:   ctype.NullUUID{NullUUID: task.ParentID},
+		CreatedAt:  task.CreatedAt,
 	}
 	return responseTask
 }
@@ -79,18 +79,18 @@ func ConvertIDRowTask(task database.GetTaskByIDRow) ResponseTask {
 		assignedName = task.AssignedName.String
 	}
 	responseTask := ResponseTask{
-		ID:          task.ID,
-		Content:     task.Content,
-		Deadline:    ctype.NullTime{NullTime: task.Deadline},
-		RemindAt:    ctype.NullTime{NullTime: task.RemindAt},
-		Status:      task.Status,
-		CreatorID:   task.CreatorID,
-		AssignedID:  ctype.NullUUID{NullUUID: task.AssignedID},
-		ParentID:    ctype.NullUUID{NullUUID: task.ParentID},
-		CreatedAt:   task.CreatedAt,
-		LastUpdated: task.LastUpdated,
-		DeletedAt:	 ctype.NullTime{NullTime: task.DeletedAt},
-		CreatorName: task.CreatorName,
+		ID:           task.ID,
+		Content:      task.Content,
+		Deadline:     ctype.NullTime{NullTime: task.Deadline},
+		RemindAt:     ctype.NullTime{NullTime: task.RemindAt},
+		Status:       task.Status,
+		CreatorID:    task.CreatorID,
+		AssignedID:   ctype.NullUUID{NullUUID: task.AssignedID},
+		ParentID:     ctype.NullUUID{NullUUID: task.ParentID},
+		CreatedAt:    task.CreatedAt,
+		LastUpdated:  task.LastUpdated,
+		DeletedAt:    ctype.NullTime{NullTime: task.DeletedAt},
+		CreatorName:  task.CreatorName,
 		AssignedName: assignedName,
 	}
 	return responseTask
@@ -101,34 +101,33 @@ func ConvertFilterRowTask(task database.ListTasksWithFilterRow) ResponseTask {
 	if task.AssignedID.Valid {
 		assignedName = task.AssignedName.String
 	}
-	var objects []BasicObject;
-	objBytes, ok := task.Objects.([]byte);
+	var objects []BasicObject
+	objBytes, ok := task.Objects.([]byte)
 	if !ok {
-		fmt.Println("Cannot convert objects to bytes: ");
+		fmt.Println("Cannot convert objects to bytes: ")
 	}
-	err := json.Unmarshal(objBytes, &objects);
+	err := json.Unmarshal(objBytes, &objects)
 	if err != nil {
-		fmt.Println("Cannot marshal objects: ", err);
+		fmt.Println("Cannot marshal objects: ", err)
 	}
 
 	responseTask := ResponseTask{
-		ID:          task.ID,
-		Content:     task.Content,
-		Deadline:    ctype.NullTime{NullTime: task.Deadline},
-		RemindAt:    ctype.NullTime{NullTime: task.RemindAt},
-		Status:      task.Status,
-		CreatorID:   task.CreatorID,
-		AssignedID:  ctype.NullUUID{NullUUID: task.AssignedID},
-		ParentID:    ctype.NullUUID{NullUUID: task.ParentID},
-		CreatedAt:   task.CreatedAt,
-		LastUpdated: task.LastUpdated,
-		CreatorName: task.CreatorName,
+		ID:           task.ID,
+		Content:      task.Content,
+		Deadline:     ctype.NullTime{NullTime: task.Deadline},
+		RemindAt:     ctype.NullTime{NullTime: task.RemindAt},
+		Status:       task.Status,
+		CreatorID:    task.CreatorID,
+		AssignedID:   ctype.NullUUID{NullUUID: task.AssignedID},
+		ParentID:     ctype.NullUUID{NullUUID: task.ParentID},
+		CreatedAt:    task.CreatedAt,
+		LastUpdated:  task.LastUpdated,
+		CreatorName:  task.CreatorName,
 		AssignedName: assignedName,
-		Objects: objects,
+		Objects:      objects,
 	}
 	return responseTask
 }
-
 
 func ConvertObjectIDRowTask(task database.ListTasksByObjectIDRow) ResponseTask {
 	// LastUpdated  time.Time      `json:"last_updated"`
@@ -137,29 +136,29 @@ func ConvertObjectIDRowTask(task database.ListTasksByObjectIDRow) ResponseTask {
 	if task.AssignedID.Valid {
 		assignedName = task.AssignedName.String
 	}
-	var objects []BasicObject;
-	objBytes, ok := task.Objects.([]byte);
+	var objects []BasicObject
+	objBytes, ok := task.Objects.([]byte)
 	if !ok {
-		fmt.Println("Cannot convert objects to bytes: ");
+		fmt.Println("Cannot convert objects to bytes: ")
 	}
-	err := json.Unmarshal(objBytes, &objects);
+	err := json.Unmarshal(objBytes, &objects)
 	if err != nil {
-		fmt.Println("Cannot marshal objects: ", err);
+		fmt.Println("Cannot marshal objects: ", err)
 	}
 	responseTask := ResponseTask{
-		ID:          task.ID,
-		Content:     task.Content,
-		Deadline:    ctype.NullTime{NullTime: task.Deadline},
-		RemindAt:    ctype.NullTime{NullTime: task.RemindAt},
-		Status:      task.Status,
-		CreatorID:   task.CreatorID,
-		CreatorName: task.CreatorName,
-		AssignedID:  ctype.NullUUID{NullUUID: task.AssignedID},
+		ID:           task.ID,
+		Content:      task.Content,
+		Deadline:     ctype.NullTime{NullTime: task.Deadline},
+		RemindAt:     ctype.NullTime{NullTime: task.RemindAt},
+		Status:       task.Status,
+		CreatorID:    task.CreatorID,
+		CreatorName:  task.CreatorName,
+		AssignedID:   ctype.NullUUID{NullUUID: task.AssignedID},
 		AssignedName: assignedName,
-		ParentID: 	ctype.NullUUID{NullUUID: task.ParentID},
-		CreatedAt:  task.CreatedAt,
-		LastUpdated: task.LastUpdated,
-		Objects: objects,
+		ParentID:     ctype.NullUUID{NullUUID: task.ParentID},
+		CreatedAt:    task.CreatedAt,
+		LastUpdated:  task.LastUpdated,
+		Objects:      objects,
 	}
 	return responseTask
 }
@@ -169,31 +168,31 @@ func NewTaskHandler(db *database.Queries) *TaskHandler {
 }
 
 type createTaskRequest struct {
-	Content   string    `json:"content"`
-	Deadline  ctype.NullTime `json:"deadline"`
-	RemindAt  ctype.NullTime `json:"remindAt"`
-	Status    string    `json:"status"`
+	Content    string         `json:"content"`
+	Deadline   ctype.NullTime `json:"deadline"`
+	RemindAt   ctype.NullTime `json:"remindAt"`
+	Status     string         `json:"status"`
 	AssignedID ctype.NullUUID `json:"assignedId"`
-	ParentID  ctype.NullUUID `json:"parentId"`
-	ObjectIDs []uuid.UUID `json:"objectIds"`
+	ParentID   ctype.NullUUID `json:"parentId"`
+	ObjectIDs  []uuid.UUID    `json:"objectIds"`
 }
 
 // TODO: this will fail
 type updateTaskRequest struct {
-	Content   string    `json:"content"`
-	Deadline  time.Time `json:"deadline"`
-	RemindAt  time.Time `json:"remindAt"`
-	Status    string    `json:"status"`
-	AssignedID uuid.UUID `json:"assignedId"`
-	ParentID  uuid.UUID `json:"parentId"`
-	ToAddObjectIDs []uuid.UUID `json:"toAddObjectIds"`
+	Content           string      `json:"content"`
+	Deadline          time.Time   `json:"deadline"`
+	RemindAt          time.Time   `json:"remindAt"`
+	Status            string      `json:"status"`
+	AssignedID        uuid.UUID   `json:"assignedId"`
+	ParentID          uuid.UUID   `json:"parentId"`
+	ToAddObjectIDs    []uuid.UUID `json:"toAddObjectIds"`
 	ToRemoveObjectIDs []uuid.UUID `json:"toRemoveObjectIds"`
 }
 
 func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req createTaskRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		fmt.Println("Error: ", err);
+		fmt.Println("Error: ", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -201,7 +200,7 @@ func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 	claims := r.Context().Value(middleware.UserClaimsKey).(*middleware.Claims)
 	OrgID := uuid.MustParse(claims.OrgID)
 	CreatorID := uuid.MustParse(claims.CreatorID)
-	
+
 	// Check if assigned_id is in the same organization
 	if req.AssignedID.Valid {
 		assigned, err := h.db.GetCreatorByID(r.Context(), req.AssignedID.UUID)
@@ -229,17 +228,32 @@ func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if len(req.ObjectIDs) > 0 {
 		err = h.db.AddObjectsToTask(r.Context(), database.AddObjectsToTaskParams{
 			Column1: req.ObjectIDs,
-			TaskID: task.ID,
-			OrgID: OrgID,
+			TaskID:  task.ID,
+			OrgID:   OrgID,
 		})
 		if err != nil {
 			http.Error(w, "Error associating objects with task", http.StatusInternalServerError)
 			return
 		}
 	}
-	taskResponse := ConvertTask(task)
+	objects, err := h.db.ListObjectsByTaskID(r.Context(), task.ID)
+	if err != nil {
+		http.Error(w, "Failed to fetch task objects", http.StatusInternalServerError)
+		return
+	}
 
-	json.NewEncoder(w).Encode(taskResponse)
+	basicObjects := make([]BasicObject, len(objects))
+	for i, obj := range objects {
+		basicObjects[i] = BasicObject{
+			ID:          obj.ID,
+			Name:        obj.Name,
+			Description: obj.Description,
+		}
+	}
+
+	responseTask := ConvertTask(task)
+	responseTask.Objects = basicObjects
+	json.NewEncoder(w).Encode(responseTask)
 }
 
 func (h *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -286,7 +300,7 @@ func (h *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if len(req.ToRemoveObjectIDs) > 0 {
 		// Remove existing associations
 		err = h.db.RemoveObjectsFromTask(r.Context(), database.RemoveObjectsFromTaskParams{
-			TaskID: taskID,
+			TaskID:  taskID,
 			Column2: req.ToRemoveObjectIDs,
 		})
 		if err != nil {
@@ -298,16 +312,32 @@ func (h *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 		// Add new associations
 		err = h.db.AddObjectsToTask(r.Context(), database.AddObjectsToTaskParams{
 			Column1: req.ToAddObjectIDs,
-			TaskID: taskID,
-			OrgID: OrgID,
+			TaskID:  taskID,
+			OrgID:   OrgID,
 		})
 		if err != nil {
 			http.Error(w, "Error associating objects with task", http.StatusInternalServerError)
 			return
 		}
 	}
-	taskResponse := ConvertTask(task)
-	json.NewEncoder(w).Encode(taskResponse)
+	objects, err := h.db.ListObjectsByTaskID(r.Context(), task.ID)
+	if err != nil {
+		http.Error(w, "Failed to fetch task objects", http.StatusInternalServerError)
+		return
+	}
+
+	basicObjects := make([]BasicObject, len(objects))
+	for i, obj := range objects {
+		basicObjects[i] = BasicObject{
+			ID:          obj.ID,
+			Name:        obj.Name,
+			Description: obj.Description,
+		}
+	}
+
+	responseTask := ConvertTask(task)
+	responseTask.Objects = basicObjects
+	json.NewEncoder(w).Encode(responseTask)
 }
 
 func (h *TaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -346,7 +376,7 @@ func (h *TaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
 /**
 * Not a common route
 * Only admin use this function to see all organization tasks
-*/
+ */
 func (h *TaskHandler) ListAllTasksInOrg(w http.ResponseWriter, r *http.Request) {
 	orgID := r.Context().Value("orgID").(uuid.UUID)
 
@@ -362,10 +392,10 @@ func (h *TaskHandler) ListAllTasksInOrg(w http.ResponseWriter, r *http.Request) 
 	}
 
 	tasks, err := h.db.ListTasksByOrgID(r.Context(), database.ListTasksByOrgIDParams{
-		OrgID:    orgID,
-		Column2:   search,
-		Limit:    int32(pageSize),
-		Offset:   int32((page - 1) * pageSize),
+		OrgID:   orgID,
+		Column2: search,
+		Limit:   int32(pageSize),
+		Offset:  int32((page - 1) * pageSize),
 	})
 
 	if err != nil {
@@ -374,7 +404,7 @@ func (h *TaskHandler) ListAllTasksInOrg(w http.ResponseWriter, r *http.Request) 
 	}
 
 	totalCount, err := h.db.CountTasksByOrgID(r.Context(), database.CountTasksByOrgIDParams{
-		OrgID:  orgID,
+		OrgID:   orgID,
 		Column2: search,
 	})
 
@@ -388,9 +418,9 @@ func (h *TaskHandler) ListAllTasksInOrg(w http.ResponseWriter, r *http.Request) 
 	}
 	response := struct {
 		Tasks      []ResponseTask `json:"tasks"`
-		TotalCount int64           `json:"totalCount"`
-		Page       int             `json:"page"`
-		PageSize   int             `json:"pageSize"`
+		TotalCount int64          `json:"totalCount"`
+		Page       int            `json:"page"`
+		PageSize   int            `json:"pageSize"`
 	}{
 		Tasks:      responseTasks,
 		TotalCount: totalCount,
@@ -428,7 +458,7 @@ func (h *TaskHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	responseTask := ConvertIDRowTask(task)
 
 	response := struct {
-		Task    ResponseTask `json:"task"`
+		Task    ResponseTask                      `json:"task"`
 		Objects []database.ListObjectsByTaskIDRow `json:"objects"`
 	}{
 		Task:    responseTask,
@@ -456,7 +486,7 @@ func (h *TaskHandler) ListByObjectID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tasks, err := h.db.ListTasksByObjectID(r.Context(), database.ListTasksByObjectIDParams{
-		ID: objectID,
+		ID:      objectID,
 		Column2: search,
 		Limit:   int32(pageSize),
 		Offset:  int32((page - 1) * pageSize),
@@ -468,7 +498,7 @@ func (h *TaskHandler) ListByObjectID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	totalCount, err := h.db.CountTasksByObjectID(r.Context(), database.CountTasksByObjectIDParams{
-		ObjID: objectID,
+		ObjID:   objectID,
 		Column2: search,
 	})
 
@@ -484,9 +514,9 @@ func (h *TaskHandler) ListByObjectID(w http.ResponseWriter, r *http.Request) {
 
 	response := struct {
 		Tasks      []ResponseTask `json:"tasks"`
-		TotalCount int64                             `json:"totalCount"`
-		Page       int                               `json:"page"`
-		PageSize   int                               `json:"pageSize"`
+		TotalCount int64          `json:"totalCount"`
+		Page       int            `json:"page"`
+		PageSize   int            `json:"pageSize"`
 	}{
 		Tasks:      responseTasks,
 		TotalCount: totalCount,

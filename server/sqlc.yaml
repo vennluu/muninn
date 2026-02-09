@@ -5,7 +5,7 @@ sql:
       - 'internal/database/sql'
       - 'internal/features/shared/queries.sql'
       - 'internal/features/auth/queries.sql'
-    schema: 'migrations/001_initial_schema.sql'
+    schema: 'migrations'
     gen:
       go:
         package: 'database'

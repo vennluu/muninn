@@ -15,67 +15,67 @@ import (
 type OrderDirection bool
 
 const (
-    OrderAsc  OrderDirection = true
-    OrderDesc OrderDirection = false
+	OrderAsc  OrderDirection = true
+	OrderDesc OrderDirection = false
 )
 
 // OrderBy represents valid ordering options
 type OrderBy string
 
 const (
-    OrderByFactCount OrderBy = "fact_count"
-    OrderByCreatedAt OrderBy = "created_at"
-    OrderByFirstFact OrderBy = "first_fact"
-    OrderByLastFact  OrderBy = "last_fact"
-    OrderByName      OrderBy = "name"
-    OrderByTypeValue OrderBy = "type_value"
+	OrderByFactCount OrderBy = "fact_count"
+	OrderByCreatedAt OrderBy = "created_at"
+	OrderByFirstFact OrderBy = "first_fact"
+	OrderByLastFact  OrderBy = "last_fact"
+	OrderByName      OrderBy = "name"
+	OrderByTypeValue OrderBy = "type_value"
 )
 
 // IsValid checks if the ordering option is valid
 func (o OrderBy) IsValid() bool {
-    switch o {
-    case OrderByFactCount, OrderByCreatedAt, OrderByFirstFact, 
-         OrderByLastFact, OrderByName, OrderByTypeValue:
-        return true
-    default:
-        return false
-    }
+	switch o {
+	case OrderByFactCount, OrderByCreatedAt, OrderByFirstFact,
+		OrderByLastFact, OrderByName, OrderByTypeValue:
+		return true
+	default:
+		return false
+	}
 }
 
 type ListObjectsParams struct {
-    pagination.Params
-    OrgID             uuid.UUID
-    SearchQuery       string
-    StepIDs           []uuid.UUID          // Filter by steps
-    TagIDs            []uuid.UUID          // Filter by tags
-    TypeIDs           []uuid.UUID          // Filter by object types
-    TypeValueCriteria []json.RawMessage    // Filter by type values
-    OrderBy           OrderBy
-    TypeValueField    string
-    Ascending        bool
-    SubStatusFilter   []int32
+	pagination.Params
+	OrgID             uuid.UUID
+	SearchQuery       string
+	StepIDs           []uuid.UUID       // Filter by steps
+	TagIDs            []uuid.UUID       // Filter by tags
+	TypeIDs           []uuid.UUID       // Filter by object types
+	TypeValueCriteria []json.RawMessage // Filter by type values
+	OrderBy           OrderBy
+	TypeValueField    string
+	Ascending         bool
+	SubStatusFilter   []int32
 }
 
 // ListObjectsAdvancedParams represents the database query parameters
 type ListObjectsAdvancedParams struct {
-    OrgID             uuid.UUID         `json:"org_id"`
-    SearchQuery       string            `json:"search_query"`
-    StepIDs           []uuid.UUID       `json:"step_ids,omitempty"`
-    TagIDs            []uuid.UUID       `json:"tag_ids,omitempty"`
-    TypeIDs           []uuid.UUID       `json:"type_ids,omitempty"`
-    TypeValueCriteria1 *json.RawMessage `json:"type_value_criteria1,omitempty"`
-    TypeValueCriteria2 *json.RawMessage `json:"type_value_criteria2,omitempty"`
-    TypeValueCriteria3 *json.RawMessage `json:"type_value_criteria3,omitempty"`
-    OrderBy           string            `json:"order_by"`
-    TypeValueField    string            `json:"type_value_field"`
-    Ascending         bool              `json:"ascending"`
-    Limit             int32             `json:"limit"`
-    Offset            int32             `json:"offset"`
-    SubStatusFilter   []int32            `json:"sub_status_filter,omitempty"`
+	OrgID              uuid.UUID        `json:"org_id"`
+	SearchQuery        string           `json:"search_query"`
+	StepIDs            []uuid.UUID      `json:"step_ids,omitempty"`
+	TagIDs             []uuid.UUID      `json:"tag_ids,omitempty"`
+	TypeIDs            []uuid.UUID      `json:"type_ids,omitempty"`
+	TypeValueCriteria1 *json.RawMessage `json:"type_value_criteria1,omitempty"`
+	TypeValueCriteria2 *json.RawMessage `json:"type_value_criteria2,omitempty"`
+	TypeValueCriteria3 *json.RawMessage `json:"type_value_criteria3,omitempty"`
+	OrderBy            string           `json:"order_by"`
+	TypeValueField     string           `json:"type_value_field"`
+	Ascending          bool             `json:"ascending"`
+	Limit              int32            `json:"limit"`
+	Offset             int32            `json:"offset"`
+	SubStatusFilter    []int32          `json:"sub_status_filter,omitempty"`
 }
 
 type ObjectService struct {
-	db *database.Queries
+	db    *database.Queries
 	debug bool
 }
 
@@ -84,102 +84,121 @@ func NewObjectService(db *database.Queries, debug bool) *ObjectService {
 }
 
 func (s *ObjectService) ListObjects(ctx context.Context, params ListObjectsParams) (*pagination.PaginatedResult[database.ListObjectsAdvancedRow], error) {
-    // Validate parameters
-    if err := params.Validate(); err != nil {
-        return nil, fmt.Errorf("invalid parameters: %w", err)
-    }
+	// Validate parameters
+	if err := params.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid parameters: %w", err)
+	}
 
-    // Prepare type value criteria
-    nullableCriteria1 := json.RawMessage("null")
-    nullableCriteria2 := json.RawMessage("null")
-    nullableCriteria3 := json.RawMessage(`null`)
-    switch len(params.TypeValueCriteria) {
-    case 3:
-        nullableCriteria3 = params.TypeValueCriteria[2]
-        fallthrough
-    case 2:
-        nullableCriteria2 = params.TypeValueCriteria[1]
-        fallthrough
-    case 1:
-        nullableCriteria1 = params.TypeValueCriteria[0]
-    }
-    
+	// Prepare type value criteria
+	nullableCriteria1 := json.RawMessage("null")
+	nullableCriteria2 := json.RawMessage("null")
+	nullableCriteria3 := json.RawMessage(`null`)
+	switch len(params.TypeValueCriteria) {
+	case 3:
+		nullableCriteria3 = params.TypeValueCriteria[2]
+		fallthrough
+	case 2:
+		nullableCriteria2 = params.TypeValueCriteria[1]
+		fallthrough
+	case 1:
+		nullableCriteria1 = params.TypeValueCriteria[0]
+	}
 
-    // Prepare arrays (nil if empty)
-    var stepIDs, tagIDs, typeIDs []uuid.UUID
-    var subStatusFilter []int32
-    if len(params.StepIDs) > 0 {
-        stepIDs = params.StepIDs
-    }
-    if len(params.TagIDs) > 0 {
-        tagIDs = params.TagIDs
-    }
-    if len(params.TypeIDs) > 0 {
-        typeIDs = params.TypeIDs
-    }
-    if len(params.SubStatusFilter) > 0 {
-        subStatusFilter = params.SubStatusFilter
-    }
+	// Prepare arrays (nil if empty)
+	var stepIDs, tagIDs, typeIDs []uuid.UUID
+	var subStatusFilter []int32
+	if len(params.StepIDs) > 0 {
+		stepIDs = params.StepIDs
+	}
+	if len(params.TagIDs) > 0 {
+		tagIDs = params.TagIDs
+	}
+	if len(params.TypeIDs) > 0 {
+		typeIDs = params.TypeIDs
+	}
+	if len(params.SubStatusFilter) > 0 {
+		subStatusFilter = params.SubStatusFilter
+	}
 
-    if s.debug {
-        log.Printf("ListObjects params: stepIDs=%v, tagIDs=%v, typeIDs=%v", 
-            stepIDs, tagIDs, typeIDs)
-    }
-    
-    count, err := s.db.CountObjectsAdvanced(ctx, database.CountObjectsAdvancedParams{
-        OrgID:             params.OrgID,
-        Column2:       params.SearchQuery,
-        Column3:          stepIDs,
-        Column4:           tagIDs,
-        Column5:          typeIDs,
-        Column6: nullableCriteria1,
-        Column7: nullableCriteria2,
-        Column8: nullableCriteria3,
-        Column9: subStatusFilter,
-    })
-    if err != nil {
-        return nil, fmt.Errorf("error counting objects: %w", err)
-    }
-    listParams := database.ListObjectsAdvancedParams{
-        OrgID:             params.OrgID,
-        Column2:       params.SearchQuery,
-        Column3:          stepIDs,
-        Column4:           tagIDs,
-        Column5:          typeIDs,
-        Column6:           nullableCriteria1,
-        Column7:           nullableCriteria2,
-        Column8:           nullableCriteria3,
-        Column9:          string(params.OrderBy),
-        Column10:    params.Ascending,
-        Column11:        params.TypeValueField, 
-        Limit:            params.PageSize,
-        Offset:           params.GetOffset(),
-        Column14: subStatusFilter,
-    }
-    items, err := s.db.ListObjectsAdvanced(ctx, listParams)
-    if err != nil {
-        return nil, fmt.Errorf("error listing objects: %w", err)
-    }
-    // loop through each item and JSON.Unmarshal the tags and type_values, steps
-    for i, item := range items {
-        if err := json.Unmarshal(item.Tags.([]byte), &items[i].Tags); err != nil {
-            return nil, fmt.Errorf("error unmarshalling tags: %w", err)
-        }
-        if err := json.Unmarshal(item.TypeValues.([]byte), &items[i].TypeValues); err != nil {
-            return nil, fmt.Errorf("error unmarshalling type values: %w", err)
-        }
-        
-        if err := json.Unmarshal(item.Steps.([]byte), &items[i].Steps); err != nil {
-            return nil, fmt.Errorf("error unmarshalling steps: %w", err)
-        }
-    }
+	if s.debug {
+		log.Printf("ListObjects params: stepIDs=%v, tagIDs=%v, typeIDs=%v",
+			stepIDs, tagIDs, typeIDs)
+	}
 
-    return &pagination.PaginatedResult[database.ListObjectsAdvancedRow]{
-        Items:      items,
-        TotalCount: count,
-        Page:       params.Page,
-        PageSize:   params.PageSize,
-    }, nil
+	count, err := s.db.CountObjectsAdvanced(ctx, database.CountObjectsAdvancedParams{
+		OrgID:   params.OrgID,
+		Column2: params.SearchQuery,
+		Column3: stepIDs,
+		Column4: tagIDs,
+		Column5: typeIDs,
+		Column6: nullableCriteria1,
+		Column7: nullableCriteria2,
+		Column8: nullableCriteria3,
+		Column9: subStatusFilter,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error counting objects: %w", err)
+	}
+	listParams := database.ListObjectsAdvancedParams{
+		OrgID:    params.OrgID,
+		Column2:  params.SearchQuery,
+		Column3:  stepIDs,
+		Column4:  tagIDs,
+		Column5:  typeIDs,
+		Column6:  nullableCriteria1,
+		Column7:  nullableCriteria2,
+		Column8:  nullableCriteria3,
+		Column9:  string(params.OrderBy),
+		Column10: params.Ascending,
+		Column11: params.TypeValueField,
+		Limit:    params.PageSize,
+		Offset:   params.GetOffset(),
+		Column14: subStatusFilter,
+	}
+	items, err := s.db.ListObjectsAdvanced(ctx, listParams)
+	if err != nil {
+		return nil, fmt.Errorf("error listing objects: %w", err)
+	}
+	// loop through each item and JSON.Unmarshal the tags and type_values, steps
+	for i, item := range items {
+		switch v := item.Tags.(type) {
+		case []byte:
+			if err := json.Unmarshal(v, &items[i].Tags); err != nil {
+				return nil, fmt.Errorf("error unmarshalling tags: %w", err)
+			}
+		case string:
+			if err := json.Unmarshal([]byte(v), &items[i].Tags); err != nil {
+				return nil, fmt.Errorf("error unmarshalling tags: %w", err)
+			}
+		}
+
+		switch v := item.TypeValues.(type) {
+		case []byte:
+			if err := json.Unmarshal(v, &items[i].TypeValues); err != nil {
+				return nil, fmt.Errorf("error unmarshalling type values: %w", err)
+			}
+		case string:
+			if err := json.Unmarshal([]byte(v), &items[i].TypeValues); err != nil {
+				return nil, fmt.Errorf("error unmarshalling type values: %w", err)
+			}
+		}
+
+		switch v := item.Steps.(type) {
+		case []byte:
+			if err := json.Unmarshal(v, &items[i].Steps); err != nil {
+				return nil, fmt.Errorf("error unmarshalling steps: %w", err)
+			}
+		case string:
+			if err := json.Unmarshal([]byte(v), &items[i].Steps); err != nil {
+				return nil, fmt.Errorf("error unmarshalling steps: %w", err)
+			}
+		}
+	}
+
+	return &pagination.PaginatedResult[database.ListObjectsAdvancedRow]{
+		Items:      items,
+		TotalCount: count,
+		Page:       params.Page,
+		PageSize:   params.PageSize,
+	}, nil
 }
-
-

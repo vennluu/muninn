@@ -67,7 +67,7 @@ const combineAllObjectTypes = (selectedObjects, globalData) => {
     obj.type_values?.forEach((tv: ObjectTypeValue) => {
       if (!typeFrequency[tv.objectTypeId]) {
         allObjTypeValues.push(tv);
-        const objectType = globalData?.objectTypeData?.objectTypes.find(
+        const objectType = globalData?.objectTypeData?.objectTypes?.find(
           (t) => t.id === tv.objectTypeId
         );
         typeFrequency[tv.objectTypeId] = {

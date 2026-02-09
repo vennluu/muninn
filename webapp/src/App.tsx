@@ -9,6 +9,8 @@ import {
   OrganisationPage,
   RegisterPage,
 } from './pages/auth/';
+import EcosystemPage from './pages/public/EcosystemPage';
+import EcosystemsDirectoryPage from './pages/public/EcosystemsDirectoryPage';
 import { FeedPage } from './pages/feed/';
 import { TasksPage } from './pages/tasks/';
 import { ViewsPage, ViewDetailPage } from './pages/views/';
@@ -33,6 +35,8 @@ import ListObjectByTypesPage from './pages/settings/ListObjectByTypesPage';
 import FunnelConfigPage from './pages/settings/funnel-config-page/FunnelConfigPage';
 import ListObjectByTagPage from './pages/settings/ListObjectByTagPage';
 import { AutomationsPage } from './pages/settings/Automation';
+import DataPage from './pages/DataPage';
+import GDPPage from './pages/GDPPage';
 
 const theme = extendTheme({
   styles: {
@@ -74,6 +78,8 @@ const App: React.FC = () => {
             <Router>
               <Switch>
                 <Route exact path='/' component={LandingPage} />
+                <Route exact path='/ecosystems' component={EcosystemsDirectoryPage} />
+                <Route exact path='/ecosystem' component={EcosystemPage} />
                 <Route exact path='/login' component={LoginPage} />
                 <Route exact path='/register' component={RegisterPage} />
                 <Route
@@ -92,6 +98,16 @@ const App: React.FC = () => {
                             exact
                             path='/feed'
                             component={FeedPage}
+                          />
+                          <ProtectedRoute
+                            exact
+                            path='/gdp'
+                            component={GDPPage}
+                          />
+                          <ProtectedRoute
+                            exact
+                            path='/data'
+                            component={DataPage}
                           />
                           <ProtectedRoute
                             exact
@@ -127,6 +143,16 @@ const App: React.FC = () => {
                             exact
                             path='/settings'
                             component={SettingsPage}
+                          />
+                          <ProtectedRoute
+                            exact
+                            path='/data'
+                            component={DataPage}
+                          />
+                          <ProtectedRoute
+                            exact
+                            path='/gdp'
+                            component={GDPPage}
                           />
                           <ProtectedRoute
                             exact
@@ -195,6 +221,11 @@ const App: React.FC = () => {
                             path='/organisation'
                             component={OrganisationPage}
                             requiredRole='admin'
+                          />
+                          <ProtectedRoute
+                            exact
+                            path='/:objectId'
+                            component={ObjectDetailPage}
                           />
                         </Switch>
                       </MainContent>

@@ -114,14 +114,14 @@ export const AutomationForm: React.FC<AutomationFormProps> = ({
       filterConfig;
     // use tag.name and type.name to display the tag and type names
     const tagsName = tagIds?.map((tagId: string) => {
-      const tag = globalData?.tagData?.tags.find((t) => t.id === tagId);
+      const tag = globalData?.tagData?.tags?.find((t) => t.id === tagId);
       if (tag) {
         return tag.name;
       }
       return '';
     });
     const typesName = typeIds?.map((typeId: string) => {
-      const type = globalData?.objectTypeData?.objectTypes.find(
+      const type = globalData?.objectTypeData?.objectTypes?.find(
         (t) => t.id === typeId
       );
       if (type) {
@@ -129,7 +129,7 @@ export const AutomationForm: React.FC<AutomationFormProps> = ({
       }
       return '';
     });
-    const funnelName = globalData?.funnelData?.funnels.find(
+    const funnelName = globalData?.funnelData?.funnels?.find(
       (funnel) => funnel.id === funnelStepFilter?.funnelId
     )?.name;
     const tagText = tagIds?.length ? `Tag(s): ${tagsName?.join(', ')}` : '';
@@ -147,8 +147,8 @@ export const AutomationForm: React.FC<AutomationFormProps> = ({
   const actionConfigText = (actionConfig: any) => {
     if (!actionConfig) return '';
     const { tagId, funnelId } = actionConfig;
-    const tag = globalData?.tagData?.tags.find((t) => t.id === tagId);
-    const funnel = globalData?.funnelData?.funnels.find(
+    const tag = globalData?.tagData?.tags?.find((t) => t.id === tagId);
+    const funnel = globalData?.funnelData?.funnels?.find(
       (f) => f.id === funnelId
     );
     const tagText = tag ? `Tag(s): ${tag.name}` : '';

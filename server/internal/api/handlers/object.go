@@ -17,7 +17,7 @@ import (
 
 type ObjectHandler struct {
 	ObjectModel *models.ObjectModel
-	DB *database.Queries
+	DB          *database.Queries
 }
 
 func NewObjectHandler(objectModel *models.ObjectModel, db *database.Queries) *ObjectHandler {
@@ -61,7 +61,7 @@ func (h *ObjectHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Name        string   `json:"name"`
 		Description string   `json:"description"`
 		IDString    string   `json:"idString"`
-		Aliases	    []string `json:"aliases"`
+		Aliases     []string `json:"aliases"`
 	}
 
 	err = json.NewDecoder(r.Body).Decode(&input)
@@ -99,7 +99,7 @@ func (h *ObjectHandler) Delete(w http.ResponseWriter, r *http.Request) {
 func (h *ObjectHandler) List(w http.ResponseWriter, r *http.Request) {
 	claims := r.Context().Value(middleware.UserClaimsKey).(*middleware.Claims)
 	orgId := uuid.MustParse(claims.OrgID)
-	
+
 	search := r.URL.Query().Get("search")
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	pageSize, _ := strconv.Atoi(r.URL.Query().Get("pageSize"))
@@ -112,7 +112,7 @@ func (h *ObjectHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	offset := int32((page - 1) * pageSize)
 	limit := int32(pageSize)
-	
+
 	objects, totalCount, err := h.ObjectModel.List(r.Context(), orgId, search, limit, offset)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -120,9 +120,9 @@ func (h *ObjectHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	response := struct {
 		Objects    []models.ListObjectsByOrgIdRow `json:"objects"`
-		TotalCount int64           `json:"totalCount"`
-		Page       int             `json:"page"`
-		PageSize   int             `json:"pageSize"`
+		TotalCount int64                          `json:"totalCount"`
+		Page       int                            `json:"page"`
+		PageSize   int                            `json:"pageSize"`
 	}{
 		Objects:    objects,
 		TotalCount: totalCount,
@@ -148,7 +148,7 @@ func (h *ObjectHandler) GetDetails(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Object not found", http.StatusNotFound)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(objectDetails)
 }
@@ -172,7 +172,7 @@ func (h *ObjectHandler) AddTag(w http.ResponseWriter, r *http.Request) {
 
 	claims := r.Context().Value(middleware.UserClaimsKey).(*middleware.Claims)
 	orgId := uuid.MustParse(claims.OrgID)
-	
+
 	err = h.ObjectModel.AddTag(r.Context(), objectID, input.TagID, orgId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -196,7 +196,7 @@ func (h *ObjectHandler) RemoveTag(w http.ResponseWriter, r *http.Request) {
 	}
 
 	claims := r.Context().Value(middleware.UserClaimsKey).(*middleware.Claims)
-	orgId := uuid.MustParse(claims.OrgID)	
+	orgId := uuid.MustParse(claims.OrgID)
 
 	err = h.ObjectModel.RemoveTag(r.Context(), objectID, tagID, orgId)
 	if err != nil {
@@ -209,15 +209,15 @@ func (h *ObjectHandler) RemoveTag(w http.ResponseWriter, r *http.Request) {
 
 func (h *ObjectHandler) AddObjectTypeValue(w http.ResponseWriter, r *http.Request) {
 	objectID, err := uuid.Parse(chi.URLParam(r, "id"))
-	d,_ := io.ReadAll(r.Body)
+	d, _ := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Invalid object ID", http.StatusBadRequest)
 		return
 	}
 
 	var input struct {
-		TypeID uuid.UUID          `json:"typeId"`
-		Values json.RawMessage    `json:"values"`
+		TypeID uuid.UUID       `json:"typeId"`
+		Values json.RawMessage `json:"values"`
 	}
 
 	err = json.Unmarshal(d, &input)
@@ -248,7 +248,7 @@ func (h *ObjectHandler) RemoveObjectTypeValue(w http.ResponseWriter, r *http.Req
 	}
 	claims := r.Context().Value(middleware.UserClaimsKey).(*middleware.Claims)
 	orgId := uuid.MustParse(claims.OrgID)
-	
+
 	err = h.ObjectModel.RemoveObjectTypeValue(r.Context(), typeValueID, orgId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -299,7 +299,7 @@ type ObjectWithTagsAndTypeValues struct {
 	Name        string          `json:"name"`
 	Description string          `json:"description"`
 	Tags        json.RawMessage `json:"tags"`
-	TypeValues json.RawMessage `json:"typeValues"`
+	TypeValues  json.RawMessage `json:"typeValues"`
 }
 
 type AdvancedFilterParams struct {
@@ -340,7 +340,24 @@ func (h *ObjectHandler) ListObjectsByTypeWithAdvancedFilter(w http.ResponseWrite
 	// Get the organization ID from the context
 	claims := r.Context().Value(middleware.UserClaimsKey).(*middleware.Claims)
 	orgID := uuid.MustParse(claims.OrgID)
-	
+
+	// Check access for non-admins
+	if claims.Role != "admin" {
+		hasAccess, err := h.DB.HasAccessToObjectType(ctx, database.HasAccessToObjectTypeParams{
+			CreatorID: uuid.MustParse(claims.CreatorID),
+			ObjTypeID: typeID,
+		})
+		if err != nil {
+			fmt.Printf("Error checking access: %v\n", err)
+			http.Error(w, "Failed to check access", http.StatusInternalServerError)
+			return
+		}
+		if !hasAccess {
+			http.Error(w, "Access denied", http.StatusForbidden)
+			return
+		}
+	}
+
 	// Prepare type values filter
 	typeValuesFilter, err := json.Marshal(filterParams.TypeValues)
 	if err != nil {
@@ -350,14 +367,14 @@ func (h *ObjectHandler) ListObjectsByTypeWithAdvancedFilter(w http.ResponseWrite
 
 	// Fetch objects
 	objects, err := h.DB.ListObjectsByTypeWithAdvancedFilter(ctx, database.ListObjectsByTypeWithAdvancedFilterParams{
-		TypeID:     typeID,
-		OrgID:      orgID,
+		TypeID:  typeID,
+		OrgID:   orgID,
 		Column3: typeValuesFilter,
-		Column4:       filterParams.Tags,
-		Column5:     filterParams.Search,
-		Column6:  filterParams.SortOrder,
-		Limit:      int32(pageSize),
-		Offset:     int32((page - 1) * pageSize),
+		Column4: filterParams.Tags,
+		Column5: filterParams.Search,
+		Column6: filterParams.SortOrder,
+		Limit:   int32(pageSize),
+		Offset:  int32((page - 1) * pageSize),
 	})
 	if err != nil {
 		fmt.Println(err)
@@ -366,11 +383,11 @@ func (h *ObjectHandler) ListObjectsByTypeWithAdvancedFilter(w http.ResponseWrite
 	}
 	// Count total objects
 	totalCount, err := h.DB.CountObjectsByTypeWithAdvancedFilter(ctx, database.CountObjectsByTypeWithAdvancedFilterParams{
-		TypeID:     typeID,
-		OrgID:      orgID,
+		TypeID:  typeID,
+		OrgID:   orgID,
 		Column3: typeValuesFilter,
-		Column4:       filterParams.Tags,
-		Column5:     filterParams.Search,
+		Column4: filterParams.Tags,
+		Column5: filterParams.Search,
 	})
 	if err != nil {
 		http.Error(w, "Failed to count objects", http.StatusInternalServerError)
@@ -382,13 +399,13 @@ func (h *ObjectHandler) ListObjectsByTypeWithAdvancedFilter(w http.ResponseWrite
 	for _, object := range objects {
 		objTagsBytes := object.Tags.([]byte)
 		objectTags := json.RawMessage(objTagsBytes)
-		
+
 		objectWithTagsAndTypeValues := ObjectWithTagsAndTypeValues{
 			ID:          object.ID,
 			Name:        object.Name,
 			Description: object.Description,
 			Tags:        objectTags,
-			TypeValues: object.TypeValues,
+			TypeValues:  object.TypeValues,
 		}
 		objectsWithTagsAndTypeValues = append(objectsWithTagsAndTypeValues, objectWithTagsAndTypeValues)
 	}
@@ -400,14 +417,13 @@ func (h *ObjectHandler) ListObjectsByTypeWithAdvancedFilter(w http.ResponseWrite
 		return
 	}
 
-
 	// Prepare response
 	response := struct {
 		Objects    []ObjectWithTagsAndTypeValues `json:"objects"`
-		TotalCount int64                                             `json:"totalCount"`
-		Page       int                                               `json:"page"`
-		PageSize   int                                               `json:"pageSize"`
-		ObjectType database.ObjType `json:"objectType"`
+		TotalCount int64                         `json:"totalCount"`
+		Page       int                           `json:"page"`
+		PageSize   int                           `json:"pageSize"`
+		ObjectType database.ObjType              `json:"objectType"`
 	}{
 		Objects:    objectsWithTagsAndTypeValues,
 		TotalCount: totalCount,

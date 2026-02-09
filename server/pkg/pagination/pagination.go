@@ -53,8 +53,8 @@ func (p Params) Validate() error {
 	if p.PageSize < 1 {
 		return fmt.Errorf("page size must be greater than 0")
 	}
-	if p.PageSize > 100 {
-		return fmt.Errorf("page size must not exceed 100")
+	if p.PageSize > 1000 {
+		return fmt.Errorf("page size must not exceed 1000")
 	}
 	return nil
 }

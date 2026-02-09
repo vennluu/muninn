@@ -109,6 +109,8 @@ const ObjectTypesPage: React.FC = () => {
         description: newObjectType.description || '',
         fields: newObjectType.fields,
         icon: newObjectType.icon,
+        is_public: newObjectType.is_public,
+        gdp_measure_field: newObjectType.gdp_measure_field,
       });
       await fetchObjectTypes();
       onClose();
@@ -141,6 +143,8 @@ const ObjectTypesPage: React.FC = () => {
         description: updatedObjectType.description || '',
         fields: updatedObjectType.fields,
         icon: updatedObjectType.icon,
+        is_public: updatedObjectType.is_public,
+        gdp_measure_field: updatedObjectType.gdp_measure_field,
       });
       await fetchObjectTypes();
       onClose();
@@ -297,11 +301,14 @@ const ObjectTypesPage: React.FC = () => {
                           >
                             {objectType.name}
                           </Text>
+                          {objectType.is_public === false && (
+                            <Badge colorScheme='gray'>Hidden</Badge>
+                          )}
                         </HStack>
-
-                        <Text fontSize='sm' color='gray.600'>
-                          <MarkdownDisplay content={objectType.description} />
-                        </Text>
+                        <MarkdownDisplay
+                          content={objectType.description || ''}
+                          characterLimit={100}
+                        />
                       </VStack>
                     </Td>
                     <Td display={['none', 'none', 'none', 'table-cell']}>

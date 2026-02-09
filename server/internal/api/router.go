@@ -22,10 +22,10 @@ func SetupRouter(queries *database.Queries, db *sql.DB) *chi.Mux {
 	r := chi.NewRouter()
 
 	corsMiddleware := cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"}, // Allow all origins
+		AllowedOrigins: []string{"http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000", "http://127.0.0.1:5173", "*"}, // Allow all origins
 		//[]string{"http://localhost:3000", "https://yourdomain.com"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-Requested-With"},
 		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: true,
 		MaxAge:           300, // Maximum value not ignored by any of major browsers
@@ -36,7 +36,7 @@ func SetupRouter(queries *database.Queries, db *sql.DB) *chi.Mux {
 	advancedObjectHandler := handlers.NewAdvancedObjectHandler(objectService)
 
 	tagHandler := handlers.NewTagHandler(queries)
-	objectTypeHandler := handlers.NewObjectTypeHandler(queries)
+	objectTypeHandler := handlers.NewObjectTypeHandler(queries, db)
 	funnelHandler := handlers.NewFunnelHandler(queries)
 	objectModel := models.NewObjectModel(queries)
 	objectHandler := handlers.NewObjectHandler(objectModel, queries)
@@ -52,6 +52,7 @@ func SetupRouter(queries *database.Queries, db *sql.DB) *chi.Mux {
 	metricsHandler := handlers.NewMetricsHandler(metricsService)
 	externalHandler := handlers.NewExternalHandler(db, queries)
 	automationHandler := handlers.NewAutomationHandler(queries)
+	gdpHandler := handlers.NewGDPHandler(queries)
 	wrapWithFeed := func(handler http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			rw := middleware.NewResponseWriter(w)
@@ -69,12 +70,21 @@ func SetupRouter(queries *database.Queries, db *sql.DB) *chi.Mux {
 	authHandler := *auth.NewHandler(queries)
 	authHandler.RegisterRoutes(r, wrapWithFeed)
 
-	r.Get("/stats",handlers.HealthCheck(queries))
+	publicHandler := handlers.NewPublicHandler(queries)
+	r.Get("/public/stats", publicHandler.GetStats)
+	r.Get("/public/feed", publicHandler.GetFeed)
+	r.Get("/public/top-objects", publicHandler.GetTopObjects)
+	r.Get("/public/orgs", publicHandler.ListOrganizations)
+	r.Get("/public/object-types", publicHandler.GetObjectTypes)
+	r.Get("/public/objects-by-type", publicHandler.GetObjectsByType)
+	r.Get("/public/objects/{objectId}", publicHandler.GetObjectDetail)
+
+	r.Get("/stats", handlers.HealthCheck(queries))
 
 	// Protected routes
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Permission)
-		
+
 		r.Route("/metrics", func(r chi.Router) {
 			r.Use(middleware.Permission)
 			r.Get("/creator/{creatorId}", metricsHandler.GetCreatorMetrics)
@@ -98,6 +108,11 @@ func SetupRouter(queries *database.Queries, db *sql.DB) *chi.Mux {
 			r.Put("/{id}", objectTypeHandler.UpdateObjectType)
 			r.Delete("/{id}", objectTypeHandler.DeleteObjectType)
 			r.Post("/{typeID}/advance", objectHandler.ListObjectsByTypeWithAdvancedFilter)
+
+			// Access control routes
+			r.Post("/access", objectTypeHandler.GrantAccessToObjectType)
+			r.Delete("/access/{creatorID}/{objectTypeID}", objectTypeHandler.RevokeAccessToObjectType)
+			r.Get("/access/{creatorID}", objectTypeHandler.GetAccessibleObjectTypesForMember)
 		})
 
 		r.Route("/setting/funnels", func(r chi.Router) {
@@ -109,7 +124,7 @@ func SetupRouter(queries *database.Queries, db *sql.DB) *chi.Mux {
 			r.Delete("/{id}", funnelHandler.DeleteFunnel)
 			r.Get("/{id}/view", funnelHandler.GetFunnelView)
 		})
-			
+
 		r.Route("/objects", func(r chi.Router) {
 			r.Use(middleware.Permission)
 			// Object routes
@@ -139,7 +154,7 @@ func SetupRouter(queries *database.Queries, db *sql.DB) *chi.Mux {
 			// Merge objects
 			r.Post("/merge", wrapWithFeed(mergeHandler.MergeObjects))
 		})
-		
+
 		r.Route("/facts", func(r chi.Router) {
 			r.Post("/", factHandler.Create)
 			r.Get("/", factHandler.List)
@@ -170,7 +185,7 @@ func SetupRouter(queries *database.Queries, db *sql.DB) *chi.Mux {
 			r.Put("/{id}", listHandler.UpdateList)
 			r.Delete("/{id}", listHandler.DeleteList)
 			// create "creator_list" for a list
-			r.Post("/{id}/creator",listHandler.CreateCreatorList)
+			r.Post("/{id}/creator", listHandler.CreateCreatorList)
 			// id of creator_list
 			r.Put("/creator/{id}", listHandler.UpdateCreatorList)
 			r.Delete("/creator/{id}", listHandler.DeleteCreatorList)
@@ -183,7 +198,7 @@ func SetupRouter(queries *database.Queries, db *sql.DB) *chi.Mux {
 			r.Post("/", importHandler.CreateImportTask)
 			r.Get("/status", importHandler.GetImportTaskStatus)
 			r.Get("/history", importHandler.GetImportHistory)
-	})
+		})
 
 		r.Route("/feeds", func(r chi.Router) {
 			r.Use(middleware.Permission)
@@ -195,16 +210,16 @@ func SetupRouter(queries *database.Queries, db *sql.DB) *chi.Mux {
 
 		r.Route("/summarize", func(r chi.Router) {
 			r.Use(middleware.Permission)
-			r.Get("/personal", summarizeHandler.PersonalSummarize);
+			r.Get("/personal", summarizeHandler.PersonalSummarize)
 		})
-	
+
 		r.Route("/external", func(r chi.Router) {
 			r.Use(middleware.Permission)
 			r.Post("/facts", externalHandler.CreateFact)
 			r.Post("/type-values", externalHandler.UpsertObjectTypeValue)
 			r.Post("/tag-object", externalHandler.TagObject)
 			r.Post("/objects", externalHandler.ListObjectsWithNormalizedData)
-		});
+		})
 
 		r.Route("/automations", func(r chi.Router) {
 			r.Use(middleware.Permission)
@@ -216,7 +231,12 @@ func SetupRouter(queries *database.Queries, db *sql.DB) *chi.Mux {
 				r.Delete("/", automationHandler.DeleteAction)
 			})
 		})
+
+		r.Route("/gdp", func(r chi.Router) {
+			r.Use(middleware.Permission)
+			r.Get("/stats", gdpHandler.GetGDPStats)
+		})
 	})
-	
+
 	return r
 }

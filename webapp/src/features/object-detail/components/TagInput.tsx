@@ -14,7 +14,7 @@ import { addTagToObject, removeTagFromObject } from 'src/api';
 import { useObjectDetail } from '../contexts/ObjectDetailContext';
 
 export const TagInput: React.FC = () => {
-  const { object, refresh } = useObjectDetail();
+  const { object, refresh, isReadOnly } = useObjectDetail();
   const tags = object?.tags || [];
   const fetchSuggestions = async (query: string): Promise<Tag[]> => {
     const response = await listTags({ page: 0, pageSize: 10, query });
@@ -89,14 +89,16 @@ export const TagInput: React.FC = () => {
             margin={1}
           >
             <TagLabel>{tag.name}</TagLabel>
-            <TagCloseButton onClick={() => removeTag(tag.id)} />
+            {!isReadOnly && <TagCloseButton onClick={() => removeTag(tag.id)} />}
           </ChakraTag>
         ))}
-        <TagSuggestion
-          onAttachTag={attachTagToObject}
-          onCreateAndAttachTag={createAndAttachTag}
-          fetchSuggestions={fetchSuggestions}
-        />
+        {!isReadOnly && (
+          <TagSuggestion
+            onAttachTag={attachTagToObject}
+            onCreateAndAttachTag={createAndAttachTag}
+            fetchSuggestions={fetchSuggestions}
+          />
+        )}
       </Flex>
     </Box>
   );

@@ -55,11 +55,15 @@ const SimpleObjectTypeView = ({
   values,
 }: SimpleObjectTypeViewProps) => {
   const sortedFields = useMemo(() => {
+    if (!config?.fields) return [];
     return Object.entries(config.fields).sort(
       ([, a], [, b]) => (a.meta?.order ?? 0) - (b.meta?.order ?? 0)
     );
   }, [config]);
   const DefaultIcon = FaIconList['question'];
+
+  if (!config) return null;
+
   return (
     <VStack spacing={2} align='stretch' width={'100%'}>
       {sortedFields.map(([field, fieldConfig]) => {
@@ -79,6 +83,11 @@ const SimpleObjectTypeView = ({
                   field={field}
                   value={values[field]}
                   config={fieldConfig}
+                  onClick={(obj: any) => {
+                    if (obj && obj.id) {
+                      window.location.assign(`/objects/${obj.id}`);
+                    }
+                  }}
                 />
               </Box>
             </Flex>

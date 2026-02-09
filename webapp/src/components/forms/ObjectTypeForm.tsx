@@ -19,6 +19,9 @@ import {
   MenuItem,
   InputLeftElement,
   useToast,
+  Switch,
+  Select,
+  FormHelperText,
 } from '@chakra-ui/react';
 import { ObjectType } from 'src/types';
 import MarkdownEditor from '../mardown/MardownEditor';
@@ -44,6 +47,8 @@ const ObjectTypeForm: React.FC<ObjectTypeFormProps> = ({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedIcon, setSelectedIcon] = useState<string>('file');
+  const [isPublic, setIsPublic] = useState(true);
+  const [gdpMeasureField, setGdpMeasureField] = useState<string>('');
   const [initialConfig, setInitialConfig] = useState<any>();
   const [editingConfig, setEditingConfig] = useState<any>();
   const toast = useToast();
@@ -53,6 +58,8 @@ const ObjectTypeForm: React.FC<ObjectTypeFormProps> = ({
     if (initialData) {
       setName(initialData.name);
       setDescription(initialData.description || '');
+      setIsPublic(initialData.is_public !== undefined ? initialData.is_public : true);
+      setGdpMeasureField(initialData.gdp_measure_field || '');
       setInitialConfig({
         fields: initialData.fields,
       });
@@ -63,6 +70,8 @@ const ObjectTypeForm: React.FC<ObjectTypeFormProps> = ({
       // Clear form when creating a new ObjectType
       setName('');
       setDescription('');
+      setIsPublic(true);
+      setGdpMeasureField('');
       setInitialConfig({
         fields: {},
       });
@@ -99,15 +108,17 @@ const ObjectTypeForm: React.FC<ObjectTypeFormProps> = ({
       });
       return;
     }
-    const objectType: ObjectType = {
-      id: initialData?.id || null, // Use existing ID if editing, otherwise null for new ObjectType
-      icon: selectedIcon,
+
+    onSave({
+      id: initialData?.id,
       name,
       description,
       fields: editingConfig.fields,
-    };
+      icon: selectedIcon,
+      is_public: isPublic,
+      gdp_measure_field: gdpMeasureField,
+    });
     setInitialConfig(editingConfig);
-    onSave(objectType);
     onClose();
   };
   return (
@@ -150,6 +161,18 @@ const ObjectTypeForm: React.FC<ObjectTypeFormProps> = ({
               <Input value={name} onChange={(e) => setName(e.target.value)} />
             </InputGroup>
           </FormControl>
+          
+          <FormControl display='flex' alignItems='center' mb={4}>
+            <FormLabel htmlFor='is-public' mb='0'>
+              Public (Visible in Ecosystem)
+            </FormLabel>
+            <Switch
+              id='is-public'
+              isChecked={isPublic}
+              onChange={(e) => setIsPublic(e.target.checked)}
+            />
+          </FormControl>
+
           <FormControl isRequired mb={4}>
             <FormLabel>Description</FormLabel>
             <MarkdownEditor
@@ -161,6 +184,29 @@ const ObjectTypeForm: React.FC<ObjectTypeFormProps> = ({
             initialConfig={initialConfig}
             onConfigChange={(newConfig) => setEditingConfig(newConfig)}
           />
+
+          <FormControl mb={4} mt={4}>
+            <FormLabel htmlFor='gdp-measure-field'>
+              GDP Measure Field (Optional)
+            </FormLabel>
+            <Select
+              id='gdp-measure-field'
+              placeholder='Select a field to measure'
+              value={gdpMeasureField}
+              onChange={(e) => setGdpMeasureField(e.target.value)}
+            >
+              {editingConfig &&
+                window.Object.keys(editingConfig.fields).map((key) => (
+                  <option key={key} value={key}>
+                    {editingConfig.fields[key].label || key} ({editingConfig.fields[key].type})
+                  </option>
+                ))}
+            </Select>
+            <FormHelperText>
+              Select a numeric field to sum up for GDP statistics. Leave empty if
+              not applicable.
+            </FormHelperText>
+          </FormControl>
         </ModalBody>
         <ModalFooter>
           <Button colorScheme='blue' mr={3} onClick={handleSave}>

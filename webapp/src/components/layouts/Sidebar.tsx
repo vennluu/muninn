@@ -20,10 +20,11 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiCheckSquare,
+  FiBarChart2,
 } from 'react-icons/fi';
 import { useGlobalContext } from 'src/contexts/GlobalContext';
 import authService from 'src/services/authService';
-import { FaFilter, FaIdCard, FaRobot, FaShare, FaTag } from 'react-icons/fa';
+import { FaDatabase, FaFilter, FaIdCard, FaRobot, FaShare, FaTag } from 'react-icons/fa';
 
 interface SidebarItemProps {
   icon: React.ElementType;
@@ -123,7 +124,7 @@ const Sidebar: React.FC = () => {
   const unseenFeedCount = globalData?.summaryData?.unseenFeedsCount || 0;
   const todoTaskCount = globalData?.summaryData?.tasksCount || 0;
 
-  const member = globalData?.memberData?.members.find(
+  const member = globalData?.memberData?.members?.find(
     (m) => m.id === authService.getCreatorId()
   );
 
@@ -231,6 +232,22 @@ const Sidebar: React.FC = () => {
               text='Everything'
               to='/objects'
               isActive={isActive('/objects')}
+              isCollapsed={isCollapsed}
+              location={location}
+            />
+            <SidebarItem
+              icon={FaDatabase}
+              text='Data'
+              to='/data'
+              isActive={isActive('/data')}
+              isCollapsed={isCollapsed}
+              location={location}
+            />
+            <SidebarItem
+              icon={FiBarChart2}
+              text='GDP Stats'
+              to='/gdp'
+              isActive={isActive('/gdp')}
               isCollapsed={isCollapsed}
               location={location}
             />

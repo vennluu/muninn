@@ -16,7 +16,6 @@ import {
   useDisclosure,
   HStack,
   Spacer,
-  useToast,
 } from '@chakra-ui/react';
 import { CalendarIcon, EditIcon } from '@chakra-ui/icons';
 import MarkdownEditor from 'src/components/mardown/MardownEditor';
@@ -108,7 +107,6 @@ const FactForm: React.FC<FactFormProps> = ({
   const { isOpen, onOpen, onClose } = useDisclosure();
   const datePickerRef = useRef<HTMLInputElement>(null);
   const [tempLocation, setTempLocation] = useState('');
-  const toast = useToast();
   useEffect(() => {
     setFact(parseInitialFact(initialFact, requireObject));
   }, [initialFact, requireObject]);
@@ -127,16 +125,9 @@ const FactForm: React.FC<FactFormProps> = ({
   };
 
   const handleSave = async () => {
-    const relatedObjectIds = fact.objectIds;
-    if (requireObject && !relatedObjectIds?.includes(requireObject.id)) {
-      toast({
-        title: 'Error adding fact',
-        description: `Please include ${requireObject.name} in the fact.`,
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-      return;
+    const relatedObjectIds = [...(fact.objectIds || [])];
+    if (requireObject && !relatedObjectIds.includes(requireObject.id)) {
+      relatedObjectIds.push(requireObject.id);
     }
     let exisitingObjectIds: any[] = [];
     if (initialFact && 'relatedObjects' in initialFact) {

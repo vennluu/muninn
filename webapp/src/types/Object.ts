@@ -73,6 +73,8 @@ export interface ObjectType {
   description?: string;
   fields: { [key: string]: any };
   icon: string;
+  is_public?: boolean;
+  gdp_measure_field?: string;
 }
 
 export interface ObjectTypeValue {

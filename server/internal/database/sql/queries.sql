@@ -20,13 +20,13 @@ VALUES ($1, $2, CURRENT_TIMESTAMP)
 RETURNING *;
 
 -- name: CreateObjectType :one
-INSERT INTO obj_type (name, description, fields, creator_id, icon)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO obj_type (name, description, fields, creator_id, icon, is_public, gdp_measure_field)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
 -- name: UpdateObjectType :one
 UPDATE obj_type
-SET name = $2, description = $3, fields = $4, icon = $5
+SET name = $2, description = $3, fields = $4, icon = $5, is_public = $6, gdp_measure_field = $7
 WHERE id = $1 AND deleted_at IS NULL
 RETURNING *;
 
@@ -39,7 +39,7 @@ WHERE obj_type.id = $1 AND deleted_at IS NULL
   );
 
 -- name: ListObjectTypes :many
-SELECT o.id, o.name, o.icon, o.description, o.fields, o.created_at
+SELECT o.id, o.name, o.icon, o.description, o.fields, o.created_at, o.is_public, o.gdp_measure_field
 FROM obj_type o
 JOIN creator c ON o.creator_id = c.id
 WHERE c.org_id = $1
@@ -753,3 +753,59 @@ FROM obj o
 JOIN obj_step os ON o.id = os.obj_id
 WHERE os.step_id = $1 AND os.deleted_at IS NULL
   AND ($2::text = '' OR o.name ILIKE '%' || $2 || '%' OR o.description ILIKE '%' || $2 || '%');
+
+-- name: GrantAccessToObjectType :exec
+INSERT INTO creator_obj_type_access (creator_id, obj_type_id)
+VALUES ($1, $2)
+ON CONFLICT DO NOTHING;
+
+-- name: RevokeAccessToObjectType :exec
+DELETE FROM creator_obj_type_access
+WHERE creator_id = $1 AND obj_type_id = $2;
+
+-- name: GetAccessibleObjectTypesForMember :many
+SELECT obj_type_id
+FROM creator_obj_type_access
+WHERE creator_id = $1;
+
+-- name: ListAccessibleObjectTypes :many
+SELECT DISTINCT o.id, o.name, o.icon, o.description, o.fields, o.created_at, o.is_public, o.gdp_measure_field
+FROM obj_type o
+LEFT JOIN creator_obj_type_access cota ON o.id = cota.obj_type_id AND cota.creator_id = $1
+JOIN creator c_owner ON o.creator_id = c_owner.id
+JOIN creator c_user ON c_user.id = $1
+WHERE 
+  o.deleted_at IS NULL
+  AND (
+    cota.creator_id IS NOT NULL 
+    OR (o.is_public = true AND c_owner.org_id = c_user.org_id)
+  )
+  AND ($2::text = '' OR 
+    o.name ILIKE '%' || $2 || '%' OR 
+    o.description ILIKE '%' || $2 || '%' OR
+    o.fields_search @@ to_tsquery('english', $2))
+ORDER BY o.created_at DESC
+LIMIT $3 OFFSET $4;
+
+-- name: CountAccessibleObjectTypes :one
+SELECT COUNT(DISTINCT o.id)
+FROM obj_type o
+LEFT JOIN creator_obj_type_access cota ON o.id = cota.obj_type_id AND cota.creator_id = $1
+JOIN creator c_owner ON o.creator_id = c_owner.id
+JOIN creator c_user ON c_user.id = $1
+WHERE 
+  o.deleted_at IS NULL
+  AND (
+    cota.creator_id IS NOT NULL 
+    OR (o.is_public = true AND c_owner.org_id = c_user.org_id)
+  )
+  AND ($2::text = '' OR 
+    o.name ILIKE '%' || $2 || '%' OR 
+    o.description ILIKE '%' || $2 || '%' OR
+    o.fields_search @@ to_tsquery('english', $2));
+
+-- name: HasAccessToObjectType :one
+SELECT EXISTS (
+    SELECT 1 FROM creator_obj_type_access
+    WHERE creator_id = $1 AND obj_type_id = $2
+);

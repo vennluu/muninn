@@ -130,7 +130,7 @@ export const FunnelPanel: React.FC = () => {
 
 export const CreateFunnelStepButton: React.FC = () => {
   const { globalData } = useGlobalContext();
-  const { object, refresh } = useObjectDetail();
+  const { object, refresh, isReadOnly } = useObjectDetail();
   const stepsAndFunnels = object?.stepsAndFunnels || [];
   const allFunnels = globalData?.funnelData?.funnels || [];
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -166,7 +166,7 @@ export const CreateFunnelStepButton: React.FC = () => {
   };
   return (
     <>
-      <FaPlus onClick={onOpen} />
+      {!isReadOnly && <FaPlus onClick={onOpen} />}
       <AddObjectStepModal
         isOpen={isOpen}
         onClose={onClose}

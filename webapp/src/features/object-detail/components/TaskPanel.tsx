@@ -86,7 +86,7 @@ export const TaskPanel: React.FC = () => {
 };
 
 export const CreateTaskButton: React.FC = () => {
-  const { object, refresh } = useObjectDetail();
+  const { object, refresh, isReadOnly } = useObjectDetail();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const objectId = object?.id;
   const objectName = object?.name;
@@ -101,7 +101,7 @@ export const CreateTaskButton: React.FC = () => {
   };
   return (
     <>
-      <FaPlus onClick={onOpen} />
+      {!isReadOnly && <FaPlus onClick={onOpen} />}
       <TaskForm
         onSave={handleSaveTask}
         onClose={onClose}
