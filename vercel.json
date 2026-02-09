@@ -19,8 +19,16 @@
       "dest": "/server/api/index.go"
     },
     {
+      "src": "/static/(.*)",
+      "dest": "/webapp/static/$1"
+    },
+    {
+      "src": "/(.*)\\.(.*)",
+      "dest": "/webapp/$1.$2"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/webapp/$1"
+      "dest": "/webapp/index.html"
     }
   ]
 }
