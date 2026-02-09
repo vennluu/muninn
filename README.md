@@ -1,113 +1,109 @@
 # Muninn - Personal CRM & Data Management
 
-Muninn là một ứng dụng quản lý dữ liệu cá nhân (CRM) bao gồm Backend (Go) và Frontend (React).
+Muninn is a personal data management application (CRM) consisting of a Backend (Go) and Frontend (React).
 
-## 📋 Yêu cầu hệ thống (Prerequisites)
+## 📋 Prerequisites
 
-Trước khi cài đặt, hãy đảm bảo máy bạn đã cài đặt:
+Before installation, ensure your machine has:
 
-- **Go**: Phiên bản 1.23 trở lên ([Tải về](https://go.dev/dl/))
-- **Node.js**: Phiên bản 16 trở lên & npm ([Tải về](https://nodejs.org/))
-- **PostgreSQL**: Cơ sở dữ liệu ([Tải về](https://www.postgresql.org/download/))
+- **Go**: Version 1.23 or higher ([Download](https://go.dev/dl/))
+- **Node.js**: Version 16 or higher & npm ([Download](https://nodejs.org/))
+- **PostgreSQL**: Database ([Download](https://www.postgresql.org/download/))
 
----
-
-## 🚀 Cài đặt & Chạy ứng dụng
+## 🚀 Installation & Setup
 
 ### 1. Clone Source Code
 
 ```bash
-git clone https://github.com/crea8r/muninn.git
+git clone https://github.com/vennluu/muninn.git
 cd muninn
 ```
 
-### 2. Cấu hình Database (PostgreSQL)
+### 2. Database Configuration (PostgreSQL)
 
-1. Tạo database mới tên là `muninn` trong PostgreSQL.
-2. Chạy file migration để tạo bảng dữ liệu:
-   
-   Dùng tool quản lý DB (như DBeaver, pgAdmin) hoặc dòng lệnh để chạy file SQL tại:
-   `server/migrations/001_initial_schema.sql`
+1. Create a new database named `muninn` in PostgreSQL.
+2. Run migration files to create data tables:
+   - Use a DB management tool (like DBeaver, pgAdmin) or command line to execute the SQL file at: `server/migrations/001_initial_schema.sql`
 
-### 3. Cài đặt & Chạy Backend (Server)
+### 3. Setup & Run Backend (Server)
 
-Di chuyển vào thư mục server:
+Navigate to the `server` directory:
 
 ```bash
 cd server
 ```
 
-Tạo file `.env` từ cấu hình mẫu:
+Create `.env` file from the template:
 
 ```bash
-# Tạo file .env
+# Create .env file
 touch .env
 ```
 
-Mở file `.env` và điền thông tin cấu hình (ví dụ):
+Open `.env` and fill in the configuration (example):
 
 ```env
 DATABASE_URL=postgres://user:password@localhost:5432/muninn?sslmode=disable
 JWT_SECRET=your_super_secret_key
 PORT=8080
 ```
-*(Thay `user`, `password` bằng thông tin PostgreSQL của bạn)*
+*(Replace `user`, `password` with your PostgreSQL credentials)*
 
-Cài đặt dependencies và chạy server:
+Install dependencies and run the server:
 
 ```bash
-# Tải thư viện
+# Download dependencies
 go mod tidy
 
-# Chạy server
+# Run server
 ./start-web.sh
-# Hoặc: go run cmd/api/main.go
+# Or: go run cmd/api/main.go
 ```
-Backend sẽ chạy tại: `http://localhost:8080`
 
-### 4. Cài đặt & Chạy Frontend (Webapp)
+The Backend will run at: `http://localhost:8080`
 
-Mở một terminal mới, di chuyển vào thư mục webapp:
+### 4. Setup & Run Frontend (Webapp)
+
+Open a new terminal, navigate to the `webapp` directory:
 
 ```bash
 cd webapp
 ```
 
-Tạo file `.env`:
+Create `.env` file:
 
 ```bash
 touch .env
 ```
 
-Nội dung file `.env` cho Frontend:
+Content for Frontend `.env`:
 
 ```env
 PORT=3000
 REACT_APP_API_URL=http://localhost:8080
 ```
 
-Cài đặt và chạy:
+Install and run:
 
 ```bash
-# Cài đặt thư viện
+# Install dependencies
 npm install
 
-# Chạy ứng dụng
+# Run application
 npm start
 ```
-Frontend sẽ chạy tại: `http://localhost:3000`
 
----
+The Frontend will run at: `http://localhost:3000`
 
-## 🛠 Cấu trúc dự án
+## 🛠 Project Structure
 
-- **/server**: Mã nguồn Backend (Golang, Chi Router, SQLC).
-- **/webapp**: Mã nguồn Frontend (ReactJS, TypeScript, Chakra UI).
-- **/sql**: Các file SQL mẫu và dữ liệu test.
+- `/server`: Backend source code (Golang, Chi Router, SQLC).
+- `/webapp`: Frontend source code (ReactJS, TypeScript, Chakra UI).
+- `/sql`: Sample SQL files and test data.
 
 ## 📝 API Documentation
 
-API backend chạy tại `http://localhost:8080`.
-Các endpoints chính:
-- `/api/health`: Kiểm tra trạng thái server.
-- `/api/v1/...`: Các API dữ liệu chính.
+Backend API runs at `http://localhost:8080`. Main endpoints:
+
+- `/api/health`: Check server status.
+- `/api/v1/...`: Main data APIs.
