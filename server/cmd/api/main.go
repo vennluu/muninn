@@ -11,11 +11,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/crea8r/muninn/server/internal/api"
-	"github.com/crea8r/muninn/server/internal/config"
-	"github.com/crea8r/muninn/server/internal/database"
-	"github.com/crea8r/muninn/server/internal/service"
-	"github.com/crea8r/muninn/server/internal/task"
+	"github.com/crea8r/muninn/server/pkg/api"
+	"github.com/crea8r/muninn/server/pkg/config"
+	"github.com/crea8r/muninn/server/pkg/database"
+	"github.com/crea8r/muninn/server/pkg/service"
+	"github.com/crea8r/muninn/server/pkg/task"
 	_ "github.com/lib/pq"
 )
 

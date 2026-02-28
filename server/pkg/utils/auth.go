@@ -3,7 +3,7 @@ package utils
 import (
 	"context"
 
-	"github.com/crea8r/muninn/server/internal/api/middleware"
+	"github.com/crea8r/muninn/server/pkg/api/middleware"
 	"github.com/google/uuid"
 )
 

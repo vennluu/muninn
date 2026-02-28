@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/crea8r/muninn/server/internal/config"
+	"github.com/crea8r/muninn/server/pkg/config"
 	_ "github.com/lib/pq"
 )
 
@@ -26,24 +26,31 @@ func main() {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
 
-	// Read the migration file
-	migrationFile := "migrations/004_add_creator_access_obj_type.sql"
-	content, err := os.ReadFile(migrationFile)
-	if err != nil {
-		// Try absolute path if relative fails
-		cwd, _ := os.Getwd()
-		migrationFile = filepath.Join(cwd, "migrations/004_add_creator_access_obj_type.sql")
-		content, err = os.ReadFile(migrationFile)
+	// List of all migration files to run in order
+	migrations := []string{
+		"migrations/001_initial_schema.sql",
+		"migrations/002_add_is_gdp_to_obj_type.sql",
+		"migrations/003_replace_is_gdp_with_measure_field.sql",
+		"migrations/004_add_creator_access_obj_type.sql",
+	}
+
+	for _, mFile := range migrations {
+		content, err := os.ReadFile(mFile)
 		if err != nil {
-			log.Fatalf("Failed to read migration file: %v", err)
+			// Try absolute path if relative fails
+			cwd, _ := os.Getwd()
+			content, err = os.ReadFile(filepath.Join(cwd, mFile))
+			if err != nil {
+				log.Fatalf("Failed to read migration file %s: %v", mFile, err)
+			}
 		}
-	}
 
-	query := string(content)
-	_, err = db.Exec(query)
-	if err != nil {
-		log.Fatalf("Failed to execute migration: %v", err)
+		query := string(content)
+		_, err = db.Exec(query)
+		if err != nil {
+			log.Printf("Warning: Failed to execute migration %s: %v (it might already exist)", mFile, err)
+			continue
+		}
+		log.Printf("Migration applied successfully: %s\n", mFile)
 	}
-
-	log.Println("Migration applied successfully: Added creator_obj_type_access table")
 }

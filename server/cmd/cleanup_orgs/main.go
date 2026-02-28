@@ -6,8 +6,8 @@ import (
 	"log"
 	"strings"
 
-	"github.com/crea8r/muninn/server/internal/config"
-	"github.com/crea8r/muninn/server/internal/database"
+	"github.com/crea8r/muninn/server/pkg/config"
+	"github.com/crea8r/muninn/server/pkg/database"
 	_ "github.com/lib/pq"
 )
 

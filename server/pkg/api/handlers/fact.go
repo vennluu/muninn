@@ -1,0 +1,291 @@
+package handlers
+
+import (
+	"database/sql"
+	"encoding/json"
+	"net/http"
+	"strconv"
+	"time"
+
+	"regexp"
+
+	"github.com/crea8r/muninn/server/pkg/api/middleware"
+	"github.com/crea8r/muninn/server/pkg/database"
+	"github.com/crea8r/muninn/server/pkg/ctype"
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+)
+
+var objectIDRegex = regexp.MustCompile(`\((?:object:)?([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\)`)
+
+type FactHandler struct {
+	db *database.Queries
+}
+
+func extractObjectIDsFromText(text string) []uuid.UUID {
+	matches := objectIDRegex.FindAllStringSubmatch(text, -1)
+	var ids []uuid.UUID
+	seen := make(map[uuid.UUID]bool)
+
+	for _, match := range matches {
+		if len(match) > 1 {
+			if id, err := uuid.Parse(match[1]); err == nil {
+				if !seen[id] {
+					ids = append(ids, id)
+					seen[id] = true
+				}
+			}
+		}
+	}
+	return ids
+}
+
+func NewFactHandler(db *database.Queries) *FactHandler {
+	return &FactHandler{db: db}
+}
+
+type FactToCreate struct {
+	Text       string         `json:"text"`
+	HappenedAt ctype.NullTime `json:"happenedAt"`
+	Location   string         `json:"location"`
+	ObjectIDs  []string       `json:"objectIds"`
+}
+
+func (h *FactHandler) Create(w http.ResponseWriter, r *http.Request) {
+	var input FactToCreate
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	claims := r.Context().Value(middleware.UserClaimsKey).(*middleware.Claims)
+	creatorID := claims.CreatorID
+
+	fact, err := h.db.CreateFact(r.Context(), database.CreateFactParams{
+		Text: input.Text,
+		HappenedAt: sql.NullTime{
+			Time:  input.HappenedAt.Time,
+			Valid: input.HappenedAt.Valid,
+		},
+		Location:  input.Location,
+		CreatorID: uuid.MustParse(creatorID),
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Combine explicit ObjectIDs and extracted IDs from text
+	extractedIDs := extractObjectIDsFromText(input.Text)
+	uniqueIDs := make(map[uuid.UUID]bool)
+
+	for _, idStr := range input.ObjectIDs {
+		if id, err := uuid.Parse(idStr); err == nil {
+			uniqueIDs[id] = true
+		}
+	}
+	for _, id := range extractedIDs {
+		uniqueIDs[id] = true
+	}
+
+	if len(uniqueIDs) > 0 {
+		objectIDs := make([]uuid.UUID, 0, len(uniqueIDs))
+		for id := range uniqueIDs {
+			objectIDs = append(objectIDs, id)
+		}
+
+		orgID := claims.OrgID
+		err = h.db.AddObjectsToFact(r.Context(), database.AddObjectsToFactParams{
+			Column1: objectIDs,
+			FactID:  fact.ID,
+			OrgID:   uuid.MustParse(orgID),
+		})
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	json.NewEncoder(w).Encode(fact)
+}
+
+func (h *FactHandler) Update(w http.ResponseWriter, r *http.Request) {
+	factID := chi.URLParam(r, "id")
+
+	var input struct {
+		Text              string         `json:"text"`
+		HappenedAt        ctype.NullTime `json:"happenedAt"`
+		Location          string         `json:"location"`
+		ToAddObjectIDs    []string       `json:"toAddObjectIDs"`
+		ToRemoveObjectIDs []string       `json:"toRemoveObjectIDs"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	fact, err := h.db.UpdateFact(r.Context(), database.UpdateFactParams{
+		ID:   uuid.MustParse(factID),
+		Text: input.Text,
+		HappenedAt: sql.NullTime{
+			Time:  input.HappenedAt.Time,
+			Valid: input.HappenedAt.Valid,
+		},
+		Location: input.Location,
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	claims := r.Context().Value(middleware.UserClaimsKey).(*middleware.Claims)
+	orgID := claims.OrgID
+
+	if len(input.ToRemoveObjectIDs) > 0 {
+		removingObjectIDs := make([]uuid.UUID, len(input.ToRemoveObjectIDs))
+		for i, id := range input.ToRemoveObjectIDs {
+			removingObjectIDs[i] = uuid.MustParse(id)
+		}
+		err = h.db.RemoveObjectsFromFact(r.Context(), database.RemoveObjectsFromFactParams{
+			FactID:  fact.ID,
+			Column2: removingObjectIDs,
+		})
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// Combine explicit ToAddObjectIDs and extracted IDs from text
+	extractedIDs := extractObjectIDsFromText(input.Text)
+	uniqueAddingIDs := make(map[uuid.UUID]bool)
+
+	for _, idStr := range input.ToAddObjectIDs {
+		if id, err := uuid.Parse(idStr); err == nil {
+			uniqueAddingIDs[id] = true
+		}
+	}
+	for _, id := range extractedIDs {
+		uniqueAddingIDs[id] = true
+	}
+
+	if len(uniqueAddingIDs) > 0 {
+		addingObjectIDs := make([]uuid.UUID, 0, len(uniqueAddingIDs))
+		for id := range uniqueAddingIDs {
+			addingObjectIDs = append(addingObjectIDs, id)
+		}
+		err = h.db.AddObjectsToFact(r.Context(), database.AddObjectsToFactParams{
+			Column1: addingObjectIDs,
+			FactID:  fact.ID,
+			OrgID:   uuid.MustParse(orgID),
+		})
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	json.NewEncoder(w).Encode(fact)
+}
+
+func (h *FactHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	factID := chi.URLParam(r, "id")
+
+	err := h.db.DeleteFact(r.Context(), uuid.MustParse(factID))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *FactHandler) List(w http.ResponseWriter, r *http.Request) {
+	claims := r.Context().Value(middleware.UserClaimsKey).(*middleware.Claims)
+	orgID := claims.OrgID
+
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	pageSize, _ := strconv.Atoi(r.URL.Query().Get("pageSize"))
+	search := r.URL.Query().Get("search")
+
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	type RelatedObjectStruct struct {
+		ID          uuid.UUID `json:"id"`
+		Name        string    `json:"name"`
+		Description string    `json:"description"`
+	}
+
+	facts, err := h.db.ListFactsByOrgID(r.Context(), database.ListFactsByOrgIDParams{
+		OrgID:   uuid.MustParse(orgID),
+		Column2: search,
+		Limit:   int32(pageSize),
+		Offset:  int32((page - 1) * pageSize),
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	totalCount, err := h.db.CountFactsByOrgID(r.Context(), database.CountFactsByOrgIDParams{
+		OrgID:   uuid.MustParse(orgID),
+		Column2: search,
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	type FactType struct {
+		ID             uuid.UUID             `json:"id"`
+		Text           string                `json:"text"`
+		HappenedAt     ctype.NullTime        `json:"happenedAt"`
+		Location       string                `json:"location"`
+		CreatorID      uuid.UUID             `json:"creatorId"`
+		CreatorName    string                `json:"creatorName"`
+		CreatedAt      time.Time             `json:"createdAt"`
+		RelatedObjects []RelatedObjectStruct `json:"relatedObjects"`
+	}
+	returningFacts := make([]FactType, len(facts))
+
+	for i, fact := range facts {
+		relatedObjects := make([]RelatedObjectStruct, 0)
+		relatedObjectsBytes, _ := fact.RelatedObjects.([]byte)
+		json.Unmarshal(relatedObjectsBytes, &relatedObjects)
+		returningFacts[i] = FactType{
+			ID:   fact.ID,
+			Text: fact.Text,
+			HappenedAt: ctype.NullTime{
+				NullTime: fact.HappenedAt,
+			},
+			Location:       fact.Location,
+			CreatorID:      fact.CreatorID,
+			CreatorName:    fact.CreatorName,
+			CreatedAt:      fact.CreatedAt,
+			RelatedObjects: relatedObjects,
+		}
+	}
+
+	response := struct {
+		Facts      []FactType `json:"facts"`
+		TotalCount int64      `json:"totalCount"`
+		Page       int        `json:"page"`
+		PageSize   int        `json:"pageSize"`
+	}{
+		Facts:      returningFacts,
+		TotalCount: totalCount,
+		Page:       page,
+		PageSize:   pageSize,
+	}
+
+	json.NewEncoder(w).Encode(response)
+}

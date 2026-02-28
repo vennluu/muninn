@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"log"
 
-	"github.com/crea8r/muninn/server/internal/config"
+	"github.com/crea8r/muninn/server/pkg/config"
 	_ "github.com/lib/pq"
 )
 

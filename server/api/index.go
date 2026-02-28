@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"strings"
 
-	serverApi "github.com/crea8r/muninn/server/internal/api"
-	"github.com/crea8r/muninn/server/internal/config"
-	"github.com/crea8r/muninn/server/internal/database"
+	_ "github.com/aws/aws-lambda-go/events"
+	_ "github.com/aws/aws-lambda-go/lambda"
+	serverApi "github.com/crea8r/muninn/server/pkg/api"
+	"github.com/crea8r/muninn/server/pkg/config"
+	"github.com/crea8r/muninn/server/pkg/database"
 	_ "github.com/lib/pq"
 )
 
