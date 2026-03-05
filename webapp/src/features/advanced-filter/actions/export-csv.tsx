@@ -31,16 +31,18 @@ export const createExportCsvAction = ({
       const visibleColumns = columns.filter((col) => col.visible);
 
       // Create headers using column labels
-      const headers = visibleColumns.map((col) => getColumnLabel(col));
+      const headers = ['Link', ...visibleColumns.map((col) => getColumnLabel(col))];
 
       // Create CSV content
       const csvContent = [
         // Headers row
         headers.map((header) => `"${header}"`).join(','),
         // Data rows
-        ...dataToExport.map((item) =>
-          visibleColumns
-            .map((column) => {
+        ...dataToExport.map((item) => {
+          const link = `${window.location.origin}/objects/${item.id}`;
+          const rowData = [
+            `"${link}"`,
+            ...visibleColumns.map((column) => {
               const value = column.objectTypeId
                 ? item.type_values?.find(
                     (tv: any) => tv.objectTypeId === column.objectTypeId
@@ -55,8 +57,9 @@ export const createExportCsvAction = ({
                 return `"${JSON.stringify(value).replace(/"/g, '""')}"`;
               return `"${value}"`;
             })
-            .join(',')
-        ),
+          ];
+          return rowData.join(',');
+        }),
       ].join('\n');
 
       // Create and download file

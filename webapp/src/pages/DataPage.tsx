@@ -17,7 +17,8 @@ import { Controls } from '@reactflow/controls';
 import { Background } from '@reactflow/background';
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
-import { Box, Spinner, Flex, Heading } from '@chakra-ui/react';
+import { Box, Spinner, Flex, Heading, HStack, Button } from '@chakra-ui/react';
+import { DownloadIcon } from '@chakra-ui/icons';
 import { useGlobalContext } from 'src/contexts/GlobalContext';
 import { ObjectType, Funnel } from 'src/types';
 import { axiosWithAuth } from 'src/api/utils';
@@ -76,6 +77,53 @@ const DataPage: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [objects, setObjects] = useState<any[]>([]);
+
+  const handleExport = useCallback(() => {
+    if (objects.length === 0) return;
+
+    const objectTypes: ObjectType[] = globalData?.objectTypeData?.objectTypes || [];
+    
+    // Create headers: ID, Name, Link, and then all fields from all types
+    const headers = ['ID', 'Name', 'Link', 'Type', 'Fields'];
+    
+    const csvRows = [
+      headers.map(h => `"${h}"`).join(','),
+      ...objects.map(obj => {
+        const link = `${window.location.origin}/objects/${obj.id}`;
+        const typeNames = (obj.type_values || []).map((tv: any) => {
+          const ot = objectTypes.find(t => t.id === tv.objectTypeId);
+          return ot ? ot.name : tv.objectTypeId;
+        }).join('; ');
+        
+        const fields = (obj.type_values || []).map((tv: any) => {
+          const ot = objectTypes.find(t => t.id === tv.objectTypeId);
+          const typePrefix = ot ? `${ot.name}:` : '';
+          return Object.entries(tv.type_values || {})
+            .map(([k, v]) => `${typePrefix}${k}=${JSON.stringify(v)}`)
+            .join('; ');
+        }).join(' | ');
+
+        return [
+          `"${obj.id}"`,
+          `"${(obj.name || 'Untitled').replace(/"/g, '""')}"`,
+          `"${link}"`,
+          `"${typeNames.replace(/"/g, '""')}"`,
+          `"${fields.replace(/"/g, '""')}"`
+        ].join(',');
+      })
+    ];
+
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `data_workflow_export_${new Date().getTime()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [objects, globalData]);
 
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
     const newSelectedId = node.id === selectedNodeId ? null : node.id;
@@ -153,7 +201,8 @@ const DataPage: React.FC = () => {
         },
       });
       
-      const objects = response.data?.items || [];
+      const fetchedObjects = response.data?.items || [];
+      setObjects(fetchedObjects);
       const objectTypes: ObjectType[] = globalData?.objectTypeData?.objectTypes || [];
       const funnels: Funnel[] = globalData?.funnelData?.funnels || [];
 
@@ -185,7 +234,7 @@ const DataPage: React.FC = () => {
       });
 
       // Create Nodes for Objects
-      objects.forEach((obj: any) => {
+      fetchedObjects.forEach((obj: any) => {
         objectIdMap.add(obj.id);
         initialNodes.push({
           id: obj.id,
@@ -227,7 +276,7 @@ const DataPage: React.FC = () => {
       });
 
       // Create Edges
-      objects.forEach((obj: any) => {
+      fetchedObjects.forEach((obj: any) => {
         // 1. Edges from Object Type Values (Object Links)
         if (obj.type_values) {
             obj.type_values.forEach((otv: any) => {
@@ -332,7 +381,18 @@ const DataPage: React.FC = () => {
     <Box height="100%" width="100%" p={4} bg="gray.50">
         <Flex justifyContent="space-between" alignItems="center" mb={4}>
             <Heading size="md">Data Workflow View</Heading>
-            {loading && <Spinner size="sm" />}
+            <HStack>
+                {loading && <Spinner size="sm" />}
+                <Button 
+                  leftIcon={<DownloadIcon />} 
+                  onClick={handleExport} 
+                  size="sm" 
+                  colorScheme="blue"
+                  isDisabled={objects.length === 0}
+                >
+                  Export CSV
+                </Button>
+            </HStack>
         </Flex>
       <Box height="calc(100vh - 150px)" border="1px solid #ddd" borderRadius="md" bg="white">
         {!loading && (

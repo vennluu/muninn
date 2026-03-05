@@ -1167,7 +1167,7 @@ WITH object_data AS (
     LEFT JOIN obj_fact of ON o.id = of.obj_id
     LEFT JOIN fact ON of.fact_id = fact.id
     WHERE o.id = $1 AND c.org_id = $2
-    GROUP BY o.id, o.name, o.description, o.id_string, o.creator_id, o.created_at, c.org_id, o.aliases
+    GROUP BY o.id, o.name, o.photo, o.description, o.id_string, o.creator_id, o.created_at, c.org_id, o.aliases
 )
 SELECT id, name, photo, description, id_string, creator_id, created_at, org_id, aliases, tags, type_values, tasks, steps_and_funnels, facts
 FROM object_data
