@@ -19,6 +19,7 @@ import {
   TabPanel,
   TabList,
   TabPanels,
+  HStack,
 } from '@chakra-ui/react';
 import { ObjectType } from 'src/types/Object';
 import {
@@ -188,7 +189,7 @@ const ImporterDialog: React.FC<ImporterDialogProps> = ({ isOpen, onClose }) => {
         } catch (error) {
           console.error('Error fetching import status:', error);
         }
-      }, 60000); // Check every minute
+      }, 5000); // Check every 5 seconds
     }
     return () => clearInterval(intervalId);
   }, [importTaskId, toast, fetchImportHistory]);

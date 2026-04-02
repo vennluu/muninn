@@ -22,6 +22,7 @@ import {
   ListsPage,
   TagsPage,
 } from './pages/settings/';
+import PublicObjectDetailPage from './pages/public/PublicObjectDetailPage';
 import NoPermissionPage from './pages/NoPermissionPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import './styles/tailwind.css';
@@ -80,6 +81,7 @@ const App: React.FC = () => {
                 <Route exact path='/' component={LandingPage} />
                 <Route exact path='/ecosystems' component={EcosystemsDirectoryPage} />
                 <Route exact path='/ecosystem' component={EcosystemPage} />
+                <Route exact path='/public/:orgId/objects/:objectId' component={PublicObjectDetailPage} />
                 <Route exact path='/login' component={LoginPage} />
                 <Route exact path='/register' component={RegisterPage} />
                 <Route

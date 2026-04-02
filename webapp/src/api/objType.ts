@@ -1,7 +1,5 @@
-import { axiosWithAuth } from './utils';
-import { ObjectType } from 'src/types';
-
-const axios = axiosWithAuth();
+import { axiosWithAuth } from "./utils";
+import { ObjectType } from "src/types";
 
 const API_URL = process.env.REACT_APP_API_URL;
 
@@ -37,42 +35,50 @@ export interface ListObjectTypesResponse {
 }
 
 export const createObjectType = async (
-  params: CreateObjectTypeParams
+  params: CreateObjectTypeParams,
 ): Promise<ObjectType> => {
-  const response = await axios.post(`${API_URL}/setting/object-types`, params);
+  const response = await axiosWithAuth().post(
+    `${API_URL}/setting/object-types`,
+    params,
+  );
   return response.data;
 };
 
 export const updateObjectType = async (
   id: string,
-  params: UpdateObjectTypeParams
+  params: UpdateObjectTypeParams,
 ): Promise<ObjectType> => {
-  const response = await axios.put(
+  const response = await axiosWithAuth().put(
     `${API_URL}/setting/object-types/${id}`,
-    params
+    params,
   );
   return response.data;
 };
 
 export const deleteObjectType = async (id: string): Promise<void> => {
-  await axios.delete(`${API_URL}/setting/object-types/${id}`);
+  await axiosWithAuth().delete(`${API_URL}/setting/object-types/${id}`);
 };
 
 export const listObjectTypes = async (
-  params: ListObjectTypesParams
+  params: ListObjectTypesParams,
 ): Promise<ListObjectTypesResponse> => {
-  const response = await axios.get(`${API_URL}/setting/object-types`, {
-    params: {
-      page: params.page,
-      page_size: params.pageSize,
-      q: params.query,
+  const response = await axiosWithAuth().get(
+    `${API_URL}/setting/object-types`,
+    {
+      params: {
+        page: params.page,
+        page_size: params.pageSize,
+        q: params.query,
+      },
     },
-  });
+  );
   return response.data;
 };
 
 export const getObjectType = async (id: string): Promise<ObjectType> => {
-  const response = await axios.get(`${API_URL}/setting/object-types/${id}`);
+  const response = await axiosWithAuth().get(
+    `${API_URL}/setting/object-types/${id}`,
+  );
   return response.data;
 };
 
@@ -96,7 +102,7 @@ export interface AdvancedFilterParams {
   typeValues: { [key: string]: any };
   tags: string[];
   search: string;
-  sortOrder: 'asc' | 'desc';
+  sortOrder: "asc" | "desc";
 }
 
 export interface GrantAccessParams {
@@ -110,24 +116,24 @@ export interface RevokeAccessParams {
 }
 
 export const grantAccessToObjectType = async (
-  params: GrantAccessParams
+  params: GrantAccessParams,
 ): Promise<void> => {
-  await axios.post(`${API_URL}/setting/object-types/access`, params);
+  await axiosWithAuth().post(`${API_URL}/setting/object-types/access`, params);
 };
 
 export const revokeAccessToObjectType = async (
-  params: RevokeAccessParams
+  params: RevokeAccessParams,
 ): Promise<void> => {
-  await axios.delete(
-    `${API_URL}/setting/object-types/access/${params.creator_id}/${params.obj_type_id}`
+  await axiosWithAuth().delete(
+    `${API_URL}/setting/object-types/access/${params.creator_id}/${params.obj_type_id}`,
   );
 };
 
 export const getAccessibleObjectTypesForMember = async (
-  creatorId: string
+  creatorId: string,
 ): Promise<ObjectType[]> => {
-  const response = await axios.get(
-    `${API_URL}/setting/object-types/access/${creatorId}`
+  const response = await axiosWithAuth().get(
+    `${API_URL}/setting/object-types/access/${creatorId}`,
   );
   return response.data;
 };
@@ -161,7 +167,7 @@ export const fetchObjectsByTypeAdvanced = async ({
         page: params.page,
         pageSize: params.pageSize,
       },
-    }
+    },
   );
   return response.data;
 };

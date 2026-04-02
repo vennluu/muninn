@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -24,9 +25,46 @@ func NewObjectHandler(objectModel *models.ObjectModel, db *database.Queries) *Ob
 	return &ObjectHandler{ObjectModel: objectModel, DB: db}
 }
 
+func (h *ObjectHandler) checkEditAccessForObject(ctx context.Context, objectID uuid.UUID) (bool, error) {
+	claims := ctx.Value(middleware.UserClaimsKey).(*middleware.Claims)
+	if claims.Role == "admin" {
+		return true, nil
+	}
+
+	typeIDs, err := h.DB.GetObjectTypeIDsByObjectID(ctx, objectID)
+	if err != nil {
+		return false, err
+	}
+
+	// If it has types, must have access to at least one
+	if len(typeIDs) > 0 {
+		for _, typeID := range typeIDs {
+			canEdit, err := h.DB.HasEditAccessToObjectType(ctx, database.HasEditAccessToObjectTypeParams{
+				CreatorID: uuid.MustParse(claims.CreatorID),
+				ObjTypeID: typeID,
+			})
+			if err != nil {
+				return false, err
+			}
+			if canEdit {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
+
+	// Fallback for objects without types: check if user is the creator
+	object, err := h.DB.GetObjectByID(ctx, objectID)
+	if err != nil {
+		return false, err
+	}
+	return object.CreatorID == uuid.MustParse(claims.CreatorID), nil
+}
+
 func (h *ObjectHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Name        string `json:"name"`
+		Photo       string `json:"photo"`
 		Description string `json:"description"`
 		IDString    string `json:"idString"`
 	}
@@ -40,7 +78,7 @@ func (h *ObjectHandler) Create(w http.ResponseWriter, r *http.Request) {
 	claims := r.Context().Value(middleware.UserClaimsKey).(*middleware.Claims)
 	creatorId := uuid.MustParse(claims.CreatorID)
 
-	object, err := h.ObjectModel.Create(r.Context(), input.Name, input.Description, input.IDString, creatorId)
+	object, err := h.ObjectModel.Create(r.Context(), input.Name, input.Description, input.IDString, input.Photo, creatorId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -57,8 +95,20 @@ func (h *ObjectHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check edit access
+	canEdit, err := h.checkEditAccessForObject(r.Context(), id)
+	if err != nil {
+		http.Error(w, "Failed to check edit access", http.StatusInternalServerError)
+		return
+	}
+	if !canEdit {
+		http.Error(w, "Forbidden: No edit access to this object", http.StatusForbidden)
+		return
+	}
+
 	var input struct {
 		Name        string   `json:"name"`
+		Photo       string   `json:"photo"`
 		Description string   `json:"description"`
 		IDString    string   `json:"idString"`
 		Aliases     []string `json:"aliases"`
@@ -70,7 +120,7 @@ func (h *ObjectHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	object, err := h.ObjectModel.Update(r.Context(), id, input.Name, input.Description, input.IDString, input.Aliases)
+	object, err := h.ObjectModel.Update(r.Context(), id, input.Name, input.Description, input.IDString, input.Photo, input.Aliases)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -84,6 +134,17 @@ func (h *ObjectHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		http.Error(w, "Invalid object ID", http.StatusBadRequest)
+		return
+	}
+
+	// Check edit access
+	canEdit, err := h.checkEditAccessForObject(r.Context(), id)
+	if err != nil {
+		http.Error(w, "Failed to check edit access", http.StatusInternalServerError)
+		return
+	}
+	if !canEdit {
+		http.Error(w, "Forbidden: No edit access to this object", http.StatusForbidden)
 		return
 	}
 
@@ -113,7 +174,7 @@ func (h *ObjectHandler) List(w http.ResponseWriter, r *http.Request) {
 	offset := int32((page - 1) * pageSize)
 	limit := int32(pageSize)
 
-	objects, totalCount, err := h.ObjectModel.List(r.Context(), orgId, search, limit, offset)
+	objects, totalCount, err := h.ObjectModel.List(r.Context(), orgId, uuid.MustParse(claims.CreatorID), search, limit, offset)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -160,6 +221,17 @@ func (h *ObjectHandler) AddTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check edit access
+	canEdit, err := h.checkEditAccessForObject(r.Context(), objectID)
+	if err != nil {
+		http.Error(w, "Failed to check edit access", http.StatusInternalServerError)
+		return
+	}
+	if !canEdit {
+		http.Error(w, "Forbidden: No edit access to this object", http.StatusForbidden)
+		return
+	}
+
 	var input struct {
 		TagID uuid.UUID `json:"tagId"`
 	}
@@ -186,6 +258,17 @@ func (h *ObjectHandler) RemoveTag(w http.ResponseWriter, r *http.Request) {
 	objectID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		http.Error(w, "Invalid object ID", http.StatusBadRequest)
+		return
+	}
+
+	// Check edit access
+	canEdit, err := h.checkEditAccessForObject(r.Context(), objectID)
+	if err != nil {
+		http.Error(w, "Failed to check edit access", http.StatusInternalServerError)
+		return
+	}
+	if !canEdit {
+		http.Error(w, "Forbidden: No edit access to this object", http.StatusForbidden)
 		return
 	}
 
@@ -229,6 +312,23 @@ func (h *ObjectHandler) AddObjectTypeValue(w http.ResponseWriter, r *http.Reques
 
 	claims := r.Context().Value(middleware.UserClaimsKey).(*middleware.Claims)
 	orgId := uuid.MustParse(claims.OrgID)
+
+	// Check edit access for non-admins
+	if claims.Role != "admin" {
+		canEdit, err := h.DB.HasEditAccessToObjectType(r.Context(), database.HasEditAccessToObjectTypeParams{
+			CreatorID: uuid.MustParse(claims.CreatorID),
+			ObjTypeID: input.TypeID,
+		})
+		if err != nil {
+			http.Error(w, "Failed to check edit access", http.StatusInternalServerError)
+			return
+		}
+		if !canEdit {
+			http.Error(w, "Forbidden: No edit access to this object type", http.StatusForbidden)
+			return
+		}
+	}
+
 	// TODO: orgId is unused in model, need to check it somewhere
 	typeValue, err := h.ObjectModel.AddObjectTypeValue(r.Context(), objectID, input.TypeID, input.Values, orgId)
 	if err != nil {
@@ -248,6 +348,27 @@ func (h *ObjectHandler) RemoveObjectTypeValue(w http.ResponseWriter, r *http.Req
 	}
 	claims := r.Context().Value(middleware.UserClaimsKey).(*middleware.Claims)
 	orgId := uuid.MustParse(claims.OrgID)
+
+	// Check edit access for non-admins
+	if claims.Role != "admin" {
+		typeID, err := h.DB.GetObjectTypeIDByTypeValueID(r.Context(), typeValueID)
+		if err != nil {
+			http.Error(w, "Failed to get object type ID", http.StatusInternalServerError)
+			return
+		}
+		canEdit, err := h.DB.HasEditAccessToObjectType(r.Context(), database.HasEditAccessToObjectTypeParams{
+			CreatorID: uuid.MustParse(claims.CreatorID),
+			ObjTypeID: typeID,
+		})
+		if err != nil {
+			http.Error(w, "Failed to check edit access", http.StatusInternalServerError)
+			return
+		}
+		if !canEdit {
+			http.Error(w, "Forbidden: No edit access to this object type", http.StatusForbidden)
+			return
+		}
+	}
 
 	err = h.ObjectModel.RemoveObjectTypeValue(r.Context(), typeValueID, orgId)
 	if err != nil {
@@ -283,6 +404,27 @@ func (h *ObjectHandler) UpdateObjectTypeValue(w http.ResponseWriter, r *http.Req
 
 	claims := r.Context().Value(middleware.UserClaimsKey).(*middleware.Claims)
 	OrgID := uuid.MustParse(claims.OrgID)
+
+	// Check edit access for non-admins
+	if claims.Role != "admin" {
+		typeID, err := h.DB.GetObjectTypeIDByTypeValueID(r.Context(), typeValueID)
+		if err != nil {
+			http.Error(w, "Failed to get object type ID", http.StatusInternalServerError)
+			return
+		}
+		canEdit, err := h.DB.HasEditAccessToObjectType(r.Context(), database.HasEditAccessToObjectTypeParams{
+			CreatorID: uuid.MustParse(claims.CreatorID),
+			ObjTypeID: typeID,
+		})
+		if err != nil {
+			http.Error(w, "Failed to check edit access", http.StatusInternalServerError)
+			return
+		}
+		if !canEdit {
+			http.Error(w, "Forbidden: No edit access to this object type", http.StatusForbidden)
+			return
+		}
+	}
 
 	updatedTypeValue, err := h.ObjectModel.UpdateObjectTypeValue(r.Context(), typeValueID, OrgID, input.Values)
 	if err != nil {
@@ -343,7 +485,7 @@ func (h *ObjectHandler) ListObjectsByTypeWithAdvancedFilter(w http.ResponseWrite
 
 	// Check access for non-admins
 	if claims.Role != "admin" {
-		hasAccess, err := h.DB.HasAccessToObjectType(ctx, database.HasAccessToObjectTypeParams{
+		hasAccess, err := h.DB.HasViewAccessToObjectType(ctx, database.HasViewAccessToObjectTypeParams{
 			CreatorID: uuid.MustParse(claims.CreatorID),
 			ObjTypeID: typeID,
 		})

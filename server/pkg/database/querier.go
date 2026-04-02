@@ -30,6 +30,7 @@ type Querier interface {
 	CountFactsByOrgID(ctx context.Context, arg CountFactsByOrgIDParams) (int64, error)
 	CountFunnels(ctx context.Context, arg CountFunnelsParams) (int64, error)
 	CountImportTasks(ctx context.Context, orgID uuid.UUID) (int64, error)
+	CountImportTasksByOrg(ctx context.Context, orgID uuid.UUID) (int64, error)
 	CountListsByOrgID(ctx context.Context, orgID uuid.UUID) (int64, error)
 	CountObjectTypes(ctx context.Context, arg CountObjectTypesParams) (int64, error)
 	CountObjectsAdvanced(ctx context.Context, arg CountObjectsAdvancedParams) (json.RawMessage, error)
@@ -47,7 +48,6 @@ type Querier interface {
 	CreateAutomatedAction(ctx context.Context, arg CreateAutomatedActionParams) (AutomatedAction, error)
 	CreateCreator(ctx context.Context, arg CreateCreatorParams) (Creator, error)
 	CreateCreatorList(ctx context.Context, arg CreateCreatorListParams) (CreatorList, error)
-	// Add these new queries to your existing queries.sql file
 	CreateFact(ctx context.Context, arg CreateFactParams) (Fact, error)
 	CreateFeed(ctx context.Context, arg CreateFeedParams) (Feed, error)
 	CreateFunnel(ctx context.Context, arg CreateFunnelParams) (Funnel, error)
@@ -67,7 +67,7 @@ type Querier interface {
 	DeleteCreator(ctx context.Context, id uuid.UUID) error
 	DeleteCreatorList(ctx context.Context, id uuid.UUID) error
 	DeleteFact(ctx context.Context, id uuid.UUID) error
-	DeleteFunnel(ctx context.Context, id uuid.UUID) error
+	DeleteFunnel(ctx context.Context, id uuid.UUID) (int64, error)
 	DeleteList(ctx context.Context, id uuid.UUID) error
 	DeleteObject(ctx context.Context, id uuid.UUID) error
 	DeleteObjectType(ctx context.Context, id uuid.UUID) (int64, error)
@@ -77,6 +77,7 @@ type Querier interface {
 	FindObjectByAliasOrIDString(ctx context.Context, arg FindObjectByAliasOrIDStringParams) (Obj, error)
 	FindTagByNormalizedName(ctx context.Context, arg FindTagByNormalizedNameParams) (Tag, error)
 	GetAccessibleObjectTypesForMember(ctx context.Context, creatorID uuid.UUID) ([]uuid.UUID, error)
+	GetAccessibleTagIDsForMember(ctx context.Context, creatorID uuid.UUID) ([]uuid.UUID, error)
 	GetAutomatedAction(ctx context.Context, id uuid.UUID) (AutomatedAction, error)
 	GetCreatorByID(ctx context.Context, id uuid.UUID) (Creator, error)
 	GetCreatorByUsername(ctx context.Context, arg GetCreatorByUsernameParams) (GetCreatorByUsernameRow, error)
@@ -88,18 +89,23 @@ type Querier interface {
 	GetGDPStats(ctx context.Context, arg GetGDPStatsParams) ([]GetGDPStatsRow, error)
 	GetImportTask(ctx context.Context, id uuid.UUID) (ImportTask, error)
 	GetImportTaskHistory(ctx context.Context, arg GetImportTaskHistoryParams) ([]ImportTask, error)
+	GetImportTasksByOrg(ctx context.Context, arg GetImportTasksByOrgParams) ([]ImportTask, error)
 	GetLatestExecution(ctx context.Context, actionID uuid.UUID) (AutomatedActionExecution, error)
 	GetListByID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetObjStep(ctx context.Context, id uuid.UUID) (ObjStep, error)
+	GetObjectByID(ctx context.Context, id uuid.UUID) (Obj, error)
 	GetObjectByIDString(ctx context.Context, idString string) (Obj, error)
 	GetObjectDetails(ctx context.Context, arg GetObjectDetailsParams) (GetObjectDetailsRow, error)
 	GetObjectTypeByID(ctx context.Context, id uuid.UUID) (ObjType, error)
+	GetObjectTypeIDByTypeValueID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
+	GetObjectTypeIDsByObjectID(ctx context.Context, objID uuid.UUID) ([]uuid.UUID, error)
 	GetObjectTypeValue(ctx context.Context, arg GetObjectTypeValueParams) (ObjTypeValue, error)
 	GetObjectsByTypeStats(ctx context.Context, orgID uuid.UUID) ([]GetObjectsByTypeStatsRow, error)
 	GetObjectsForStep(ctx context.Context, arg GetObjectsForStepParams) ([]GetObjectsForStepRow, error)
 	GetOngoingImportTask(ctx context.Context, orgID uuid.UUID) (ImportTask, error)
 	GetOrgDetails(ctx context.Context, id uuid.UUID) (Org, error)
 	GetPendingActions(ctx context.Context) ([]AutomatedAction, error)
+	GetPublicLinkedObjects(ctx context.Context, arg GetPublicLinkedObjectsParams) ([]GetPublicLinkedObjectsRow, error)
 	GetPublicObject(ctx context.Context, arg GetPublicObjectParams) (GetPublicObjectRow, error)
 	GetPublicObjectFacts(ctx context.Context, arg GetPublicObjectFactsParams) ([]GetPublicObjectFactsRow, error)
 	GetPublicObjectTypeValues(ctx context.Context, objID uuid.UUID) ([]GetPublicObjectTypeValuesRow, error)
@@ -114,10 +120,13 @@ type Querier interface {
 	GetTagsByIDs(ctx context.Context, dollar_1 []uuid.UUID) ([]Tag, error)
 	GetTaskByID(ctx context.Context, id uuid.UUID) (GetTaskByIDRow, error)
 	GrantAccessToObjectType(ctx context.Context, arg GrantAccessToObjectTypeParams) error
+	GrantAccessToTag(ctx context.Context, arg GrantAccessToTagParams) error
 	HardDeleteObjStep(ctx context.Context, id uuid.UUID) error
-	HasAccessToObjectType(ctx context.Context, arg HasAccessToObjectTypeParams) (bool, error)
+	HasEditAccessToObjectType(ctx context.Context, arg HasEditAccessToObjectTypeParams) (bool, error)
+	HasViewAccessToObjectType(ctx context.Context, arg HasViewAccessToObjectTypeParams) (bool, error)
 	HealthCheck(ctx context.Context) (int32, error)
 	ListAccessibleObjectTypes(ctx context.Context, arg ListAccessibleObjectTypesParams) ([]ListAccessibleObjectTypesRow, error)
+	ListAccessibleTags(ctx context.Context, id uuid.UUID) ([]Tag, error)
 	ListActionExecutions(ctx context.Context, arg ListActionExecutionsParams) ([]AutomatedActionExecution, error)
 	ListAutomatedActions(ctx context.Context, arg ListAutomatedActionsParams) ([]AutomatedAction, error)
 	ListCreatorListsByCreatorID(ctx context.Context, creatorID uuid.UUID) ([]ListCreatorListsByCreatorIDRow, error)
@@ -136,6 +145,7 @@ type Querier interface {
 	ListObjectsWithNormalizedData(ctx context.Context, arg ListObjectsWithNormalizedDataParams) ([]ListObjectsWithNormalizedDataRow, error)
 	ListOrgMembers(ctx context.Context, arg ListOrgMembersParams) ([]ListOrgMembersRow, error)
 	ListOrganizations(ctx context.Context) ([]ListOrganizationsRow, error)
+	ListRecentObjectStepChangesByOrgID(ctx context.Context, arg ListRecentObjectStepChangesByOrgIDParams) ([]ListRecentObjectStepChangesByOrgIDRow, error)
 	ListStepsByFunnel(ctx context.Context, funnelID uuid.UUID) ([]ListStepsByFunnelRow, error)
 	ListTags(ctx context.Context, arg ListTagsParams) ([]ListTagsRow, error)
 	ListTasksByObjectID(ctx context.Context, arg ListTasksByObjectIDParams) ([]ListTasksByObjectIDRow, error)
@@ -158,6 +168,7 @@ type Querier interface {
 	RemoveObjectsFromTask(ctx context.Context, arg RemoveObjectsFromTaskParams) error
 	RemoveTagFromObject(ctx context.Context, arg RemoveTagFromObjectParams) error
 	RevokeAccessToObjectType(ctx context.Context, arg RevokeAccessToObjectTypeParams) error
+	RevokeAccessToTag(ctx context.Context, arg RevokeAccessToTagParams) error
 	// Ensure we only get one row
 	SoftDeleteObjStep(ctx context.Context, id uuid.UUID) error
 	SyncObjectAliases(ctx context.Context, arg SyncObjectAliasesParams) (SyncObjectAliasesRow, error)

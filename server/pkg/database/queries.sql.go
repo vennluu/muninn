@@ -23,14 +23,15 @@ WITH org_check AS (
   FROM
     obj o
   JOIN
-    creator c_obj ON o.creator_id = c_obj.id -- Join the creator of obj
+    creator c_obj ON o.creator_id = c_obj.id
   JOIN
-    obj_type ot ON ot.id = $2               -- obj_type_id parameter
+    obj_type ot ON ot.id = $2
   JOIN
-    creator c_ot ON ot.creator_id = c_ot.id -- Join the creator of obj_type
+    creator c_ot ON ot.creator_id = c_ot.id
   WHERE
-    c_obj.org_id = c_ot.org_id              -- Ensure both creators belong to the same org
-    AND o.id = $1                           -- obj_id parameter
+    c_obj.org_id = c_ot.org_id
+    AND c_obj.org_id = $4
+    AND o.id = $1
 )
 INSERT INTO obj_type_value (obj_id, type_id, type_values)
 SELECT $1, $2, $3::jsonb
@@ -43,10 +44,16 @@ type AddObjectTypeValueParams struct {
 	ObjID   uuid.UUID       `json:"obj_id"`
 	TypeID  uuid.UUID       `json:"type_id"`
 	Column3 json.RawMessage `json:"column_3"`
+	OrgID   uuid.UUID       `json:"org_id"`
 }
 
 func (q *Queries) AddObjectTypeValue(ctx context.Context, arg AddObjectTypeValueParams) (ObjTypeValue, error) {
-	row := q.queryRow(ctx, q.addObjectTypeValueStmt, addObjectTypeValue, arg.ObjID, arg.TypeID, arg.Column3)
+	row := q.queryRow(ctx, q.addObjectTypeValueStmt, addObjectTypeValue,
+		arg.ObjID,
+		arg.TypeID,
+		arg.Column3,
+		arg.OrgID,
+	)
 	var i ObjTypeValue
 	err := row.Scan(
 		&i.ID,
@@ -135,14 +142,16 @@ func (q *Queries) AddTagToObject(ctx context.Context, arg AddTagToObjectParams) 
 const countAccessibleObjectTypes = `-- name: CountAccessibleObjectTypes :one
 SELECT COUNT(DISTINCT o.id)
 FROM obj_type o
-LEFT JOIN creator_obj_type_access cota ON o.id = cota.obj_type_id AND cota.creator_id = $1
 JOIN creator c_owner ON o.creator_id = c_owner.id
-JOIN creator c_user ON c_user.id = $1
 WHERE 
   o.deleted_at IS NULL
+  AND c_owner.org_id = (SELECT c_sub.org_id FROM creator c_sub WHERE c_sub.id = $1)
   AND (
-    cota.creator_id IS NOT NULL 
-    OR (o.is_public = true AND c_owner.org_id = c_user.org_id)
+    (SELECT c_sub2.role FROM creator c_sub2 WHERE c_sub2.id = $1) = 'admin'
+    OR EXISTS (
+      SELECT 1 FROM creator_obj_type_access cota 
+      WHERE cota.obj_type_id = o.id AND cota.creator_id = $1
+    )
   )
   AND ($2::text = '' OR 
     o.name ILIKE '%' || $2 || '%' OR 
@@ -151,12 +160,12 @@ WHERE
 `
 
 type CountAccessibleObjectTypesParams struct {
-	CreatorID uuid.UUID `json:"creator_id"`
-	Column2   string    `json:"column_2"`
+	ID      uuid.UUID `json:"id"`
+	Column2 string    `json:"column_2"`
 }
 
 func (q *Queries) CountAccessibleObjectTypes(ctx context.Context, arg CountAccessibleObjectTypesParams) (int64, error) {
-	row := q.queryRow(ctx, q.countAccessibleObjectTypesStmt, countAccessibleObjectTypes, arg.CreatorID, arg.Column2)
+	row := q.queryRow(ctx, q.countAccessibleObjectTypesStmt, countAccessibleObjectTypes, arg.ID, arg.Column2)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -218,12 +227,31 @@ func (q *Queries) CountFunnels(ctx context.Context, arg CountFunnelsParams) (int
 	return count, err
 }
 
+const countImportTasksByOrg = `-- name: CountImportTasksByOrg :one
+SELECT COUNT(*) FROM import_task
+WHERE org_id = $1
+`
+
+func (q *Queries) CountImportTasksByOrg(ctx context.Context, orgID uuid.UUID) (int64, error) {
+	row := q.queryRow(ctx, q.countImportTasksByOrgStmt, countImportTasksByOrg, orgID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countObjectTypes = `-- name: CountObjectTypes :one
 SELECT COUNT(*) 
 FROM obj_type o
-JOIN creator c ON o.creator_id = c.id
-WHERE c.org_id = $1
-  AND o.deleted_at IS NULL
+WHERE o.deleted_at IS NULL
+  AND (
+    o.creator_id IN (SELECT c_sub.id FROM creator c_sub WHERE c_sub.org_id = $1)
+    OR EXISTS (
+        SELECT 1 FROM obj_type_value otv
+        JOIN obj obj2 ON otv.obj_id = obj2.id
+        JOIN creator c2 ON obj2.creator_id = c2.id
+        WHERE otv.type_id = o.id AND c2.org_id = $1
+    )
+  )
   AND ($2::text = '' OR 
     o.name ILIKE '%' || $2 || '%' OR 
     o.description ILIKE '%' || $2 || '%' OR
@@ -446,7 +474,6 @@ func (q *Queries) CreateCreator(ctx context.Context, arg CreateCreatorParams) (C
 }
 
 const createFact = `-- name: CreateFact :one
-
 INSERT INTO fact (text, happened_at, location, creator_id)
 VALUES ($1, $2, $3, $4)
 RETURNING id, text, happened_at, location, creator_id, created_at, last_updated, deleted_at
@@ -459,7 +486,6 @@ type CreateFactParams struct {
 	CreatorID  uuid.UUID    `json:"creator_id"`
 }
 
-// Add these new queries to your existing queries.sql file
 func (q *Queries) CreateFact(ctx context.Context, arg CreateFactParams) (Fact, error) {
 	row := q.queryRow(ctx, q.createFactStmt, createFact,
 		arg.Text,
@@ -609,16 +635,18 @@ func (q *Queries) CreateObjStep(ctx context.Context, arg CreateObjStepParams) (C
 }
 
 const createObject = `-- name: CreateObject :one
-INSERT INTO obj (name, description, id_string, creator_id)
-VALUES ($1, $2, $3, $4)
-RETURNING id, name, photo, description, id_string, creator_id, created_at, deleted_at, aliases
+INSERT INTO obj (name, description, id_string, creator_id, photo, org_id)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, name, photo, description, id_string, creator_id, created_at, deleted_at, aliases, org_id
 `
 
 type CreateObjectParams struct {
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	IDString    string    `json:"id_string"`
-	CreatorID   uuid.UUID `json:"creator_id"`
+	Name        string        `json:"name"`
+	Description string        `json:"description"`
+	IDString    string        `json:"id_string"`
+	CreatorID   uuid.UUID     `json:"creator_id"`
+	Photo       string        `json:"photo"`
+	OrgID       uuid.NullUUID `json:"org_id"`
 }
 
 func (q *Queries) CreateObject(ctx context.Context, arg CreateObjectParams) (Obj, error) {
@@ -627,6 +655,8 @@ func (q *Queries) CreateObject(ctx context.Context, arg CreateObjectParams) (Obj
 		arg.Description,
 		arg.IDString,
 		arg.CreatorID,
+		arg.Photo,
+		arg.OrgID,
 	)
 	var i Obj
 	err := row.Scan(
@@ -639,6 +669,7 @@ func (q *Queries) CreateObject(ctx context.Context, arg CreateObjectParams) (Obj
 		&i.CreatedAt,
 		&i.DeletedAt,
 		pq.Array(&i.Aliases),
+		&i.OrgID,
 	)
 	return i, err
 }
@@ -817,21 +848,26 @@ func (q *Queries) DeleteFact(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
-const deleteFunnel = `-- name: DeleteFunnel :exec
+const deleteFunnel = `-- name: DeleteFunnel :execrows
 UPDATE funnel
 SET deleted_at = CURRENT_TIMESTAMP
 WHERE funnel.id = $1 AND deleted_at IS NULL
   AND NOT EXISTS (
     SELECT 1 FROM obj_step os
     JOIN step s ON s.id = os.step_id
+    JOIN obj o ON o.id = os.obj_id
     WHERE s.funnel_id = $1
     AND os.deleted_at IS NULL
+    AND o.deleted_at IS NULL
   )
 `
 
-func (q *Queries) DeleteFunnel(ctx context.Context, id uuid.UUID) error {
-	_, err := q.exec(ctx, q.deleteFunnelStmt, deleteFunnel, id)
-	return err
+func (q *Queries) DeleteFunnel(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.exec(ctx, q.deleteFunnelStmt, deleteFunnel, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const deleteObject = `-- name: DeleteObject :exec
@@ -904,6 +940,34 @@ func (q *Queries) GetAccessibleObjectTypesForMember(ctx context.Context, creator
 			return nil, err
 		}
 		items = append(items, obj_type_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAccessibleTagIDsForMember = `-- name: GetAccessibleTagIDsForMember :many
+SELECT tag_id FROM creator_tag_access
+WHERE creator_id = $1
+`
+
+func (q *Queries) GetAccessibleTagIDsForMember(ctx context.Context, creatorID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.query(ctx, q.getAccessibleTagIDsForMemberStmt, getAccessibleTagIDsForMember, creatorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var tag_id uuid.UUID
+		if err := rows.Scan(&tag_id); err != nil {
+			return nil, err
+		}
+		items = append(items, tag_id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -1087,6 +1151,56 @@ func (q *Queries) GetFunnel(ctx context.Context, id uuid.UUID) (GetFunnelRow, er
 	return i, err
 }
 
+const getImportTasksByOrg = `-- name: GetImportTasksByOrg :many
+SELECT id, org_id, creator_id, obj_type_id, status, progress, total_rows, processed_rows, error_message, result_summary, file_name, created_at, updated_at FROM import_task
+WHERE org_id = $1
+ORDER BY created_at DESC
+LIMIT $2 OFFSET $3
+`
+
+type GetImportTasksByOrgParams struct {
+	OrgID  uuid.UUID `json:"org_id"`
+	Limit  int32     `json:"limit"`
+	Offset int32     `json:"offset"`
+}
+
+func (q *Queries) GetImportTasksByOrg(ctx context.Context, arg GetImportTasksByOrgParams) ([]ImportTask, error) {
+	rows, err := q.query(ctx, q.getImportTasksByOrgStmt, getImportTasksByOrg, arg.OrgID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ImportTask
+	for rows.Next() {
+		var i ImportTask
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrgID,
+			&i.CreatorID,
+			&i.ObjTypeID,
+			&i.Status,
+			&i.Progress,
+			&i.TotalRows,
+			&i.ProcessedRows,
+			&i.ErrorMessage,
+			&i.ResultSummary,
+			&i.FileName,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getObjStep = `-- name: GetObjStep :one
 SELECT id, obj_id, step_id, creator_id, sub_status, created_at, last_updated, deleted_at FROM obj_step
 WHERE id = $1
@@ -1104,6 +1218,28 @@ func (q *Queries) GetObjStep(ctx context.Context, id uuid.UUID) (ObjStep, error)
 		&i.CreatedAt,
 		&i.LastUpdated,
 		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const getObjectByID = `-- name: GetObjectByID :one
+SELECT id, name, photo, description, id_string, creator_id, created_at, deleted_at, aliases, org_id FROM obj WHERE id = $1
+`
+
+func (q *Queries) GetObjectByID(ctx context.Context, id uuid.UUID) (Obj, error) {
+	row := q.queryRow(ctx, q.getObjectByIDStmt, getObjectByID, id)
+	var i Obj
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Photo,
+		&i.Description,
+		&i.IDString,
+		&i.CreatorID,
+		&i.CreatedAt,
+		&i.DeletedAt,
+		pq.Array(&i.Aliases),
+		&i.OrgID,
 	)
 	return i, err
 }
@@ -1139,6 +1275,7 @@ WITH object_data AS (
                'stepName', s.name,
                'funnelId', f.id,
                'funnelName', f.name,
+               'funnelDeletedAt', f.deleted_at,
                'subStatus', os.sub_status,
                'createdAt', os.created_at,
                'deletedAt', os.deleted_at,
@@ -1242,8 +1379,46 @@ func (q *Queries) GetObjectTypeByID(ctx context.Context, id uuid.UUID) (ObjType,
 	return i, err
 }
 
+const getObjectTypeIDByTypeValueID = `-- name: GetObjectTypeIDByTypeValueID :one
+SELECT type_id FROM obj_type_value WHERE id = $1
+`
+
+func (q *Queries) GetObjectTypeIDByTypeValueID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.queryRow(ctx, q.getObjectTypeIDByTypeValueIDStmt, getObjectTypeIDByTypeValueID, id)
+	var type_id uuid.UUID
+	err := row.Scan(&type_id)
+	return type_id, err
+}
+
+const getObjectTypeIDsByObjectID = `-- name: GetObjectTypeIDsByObjectID :many
+SELECT type_id FROM obj_type_value WHERE obj_id = $1
+`
+
+func (q *Queries) GetObjectTypeIDsByObjectID(ctx context.Context, objID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.query(ctx, q.getObjectTypeIDsByObjectIDStmt, getObjectTypeIDsByObjectID, objID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var type_id uuid.UUID
+		if err := rows.Scan(&type_id); err != nil {
+			return nil, err
+		}
+		items = append(items, type_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getObjectsForStep = `-- name: GetObjectsForStep :many
-SELECT o.id, o.name, o.description,
+SELECT o.id, o.name, o.description, o.photo,
        coalesce(json_agg(json_build_object('id', t.id, 'name', t.name, 'color_schema', t.color_schema)) FILTER (WHERE t.id IS NOT NULL), '[]') AS tags
 FROM obj o
 JOIN obj_step os ON o.id = os.obj_id
@@ -1267,6 +1442,7 @@ type GetObjectsForStepRow struct {
 	ID          uuid.UUID   `json:"id"`
 	Name        string      `json:"name"`
 	Description string      `json:"description"`
+	Photo       string      `json:"photo"`
 	Tags        interface{} `json:"tags"`
 }
 
@@ -1288,6 +1464,7 @@ func (q *Queries) GetObjectsForStep(ctx context.Context, arg GetObjectsForStepPa
 			&i.ID,
 			&i.Name,
 			&i.Description,
+			&i.Photo,
 			&i.Tags,
 		); err != nil {
 			return nil, err
@@ -1424,6 +1601,22 @@ func (q *Queries) GrantAccessToObjectType(ctx context.Context, arg GrantAccessTo
 	return err
 }
 
+const grantAccessToTag = `-- name: GrantAccessToTag :exec
+INSERT INTO creator_tag_access (creator_id, tag_id)
+VALUES ($1, $2)
+ON CONFLICT (creator_id, tag_id) DO NOTHING
+`
+
+type GrantAccessToTagParams struct {
+	CreatorID uuid.UUID `json:"creator_id"`
+	TagID     uuid.UUID `json:"tag_id"`
+}
+
+func (q *Queries) GrantAccessToTag(ctx context.Context, arg GrantAccessToTagParams) error {
+	_, err := q.exec(ctx, q.grantAccessToTagStmt, grantAccessToTag, arg.CreatorID, arg.TagID)
+	return err
+}
+
 const hardDeleteObjStep = `-- name: HardDeleteObjStep :exec
 DELETE FROM obj_step
 WHERE id = $1
@@ -1434,20 +1627,39 @@ func (q *Queries) HardDeleteObjStep(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
-const hasAccessToObjectType = `-- name: HasAccessToObjectType :one
+const hasEditAccessToObjectType = `-- name: HasEditAccessToObjectType :one
 SELECT EXISTS (
     SELECT 1 FROM creator_obj_type_access
     WHERE creator_id = $1 AND obj_type_id = $2
 )
 `
 
-type HasAccessToObjectTypeParams struct {
+type HasEditAccessToObjectTypeParams struct {
 	CreatorID uuid.UUID `json:"creator_id"`
 	ObjTypeID uuid.UUID `json:"obj_type_id"`
 }
 
-func (q *Queries) HasAccessToObjectType(ctx context.Context, arg HasAccessToObjectTypeParams) (bool, error) {
-	row := q.queryRow(ctx, q.hasAccessToObjectTypeStmt, hasAccessToObjectType, arg.CreatorID, arg.ObjTypeID)
+func (q *Queries) HasEditAccessToObjectType(ctx context.Context, arg HasEditAccessToObjectTypeParams) (bool, error) {
+	row := q.queryRow(ctx, q.hasEditAccessToObjectTypeStmt, hasEditAccessToObjectType, arg.CreatorID, arg.ObjTypeID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const hasViewAccessToObjectType = `-- name: HasViewAccessToObjectType :one
+SELECT EXISTS (
+    SELECT 1 FROM creator_obj_type_access
+    WHERE creator_id = $1 AND obj_type_id = $2
+)
+`
+
+type HasViewAccessToObjectTypeParams struct {
+	CreatorID uuid.UUID `json:"creator_id"`
+	ObjTypeID uuid.UUID `json:"obj_type_id"`
+}
+
+func (q *Queries) HasViewAccessToObjectType(ctx context.Context, arg HasViewAccessToObjectTypeParams) (bool, error) {
+	row := q.queryRow(ctx, q.hasViewAccessToObjectTypeStmt, hasViewAccessToObjectType, arg.CreatorID, arg.ObjTypeID)
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
@@ -1456,14 +1668,16 @@ func (q *Queries) HasAccessToObjectType(ctx context.Context, arg HasAccessToObje
 const listAccessibleObjectTypes = `-- name: ListAccessibleObjectTypes :many
 SELECT DISTINCT o.id, o.name, o.icon, o.description, o.fields, o.created_at, o.is_public, o.gdp_measure_field
 FROM obj_type o
-LEFT JOIN creator_obj_type_access cota ON o.id = cota.obj_type_id AND cota.creator_id = $1
 JOIN creator c_owner ON o.creator_id = c_owner.id
-JOIN creator c_user ON c_user.id = $1
 WHERE 
   o.deleted_at IS NULL
+  AND c_owner.org_id = (SELECT c_sub.org_id FROM creator c_sub WHERE c_sub.id = $1)
   AND (
-    cota.creator_id IS NOT NULL 
-    OR (o.is_public = true AND c_owner.org_id = c_user.org_id)
+    (SELECT c_sub2.role FROM creator c_sub2 WHERE c_sub2.id = $1) = 'admin'
+    OR EXISTS (
+      SELECT 1 FROM creator_obj_type_access cota 
+      WHERE cota.obj_type_id = o.id AND cota.creator_id = $1
+    )
   )
   AND ($2::text = '' OR 
     o.name ILIKE '%' || $2 || '%' OR 
@@ -1474,10 +1688,10 @@ LIMIT $3 OFFSET $4
 `
 
 type ListAccessibleObjectTypesParams struct {
-	CreatorID uuid.UUID `json:"creator_id"`
-	Column2   string    `json:"column_2"`
-	Limit     int32     `json:"limit"`
-	Offset    int32     `json:"offset"`
+	ID      uuid.UUID `json:"id"`
+	Column2 string    `json:"column_2"`
+	Limit   int32     `json:"limit"`
+	Offset  int32     `json:"offset"`
 }
 
 type ListAccessibleObjectTypesRow struct {
@@ -1493,7 +1707,7 @@ type ListAccessibleObjectTypesRow struct {
 
 func (q *Queries) ListAccessibleObjectTypes(ctx context.Context, arg ListAccessibleObjectTypesParams) ([]ListAccessibleObjectTypesRow, error) {
 	rows, err := q.query(ctx, q.listAccessibleObjectTypesStmt, listAccessibleObjectTypes,
-		arg.CreatorID,
+		arg.ID,
 		arg.Column2,
 		arg.Limit,
 		arg.Offset,
@@ -1514,6 +1728,52 @@ func (q *Queries) ListAccessibleObjectTypes(ctx context.Context, arg ListAccessi
 			&i.CreatedAt,
 			&i.IsPublic,
 			&i.GdpMeasureField,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAccessibleTags = `-- name: ListAccessibleTags :many
+SELECT t.id, t.name, t.description, t.color_schema, t.org_id, t.created_at, t.deleted_at FROM tag t
+JOIN creator c_owner ON t.creator_id = c_owner.id
+WHERE t.deleted_at IS NULL
+  AND c_owner.org_id = (SELECT c_sub.org_id FROM creator c_sub WHERE c_sub.id = $1)
+  AND (
+    (SELECT c_sub2.role FROM creator c_sub2 WHERE c_sub2.id = $1) = 'admin'
+    OR EXISTS (
+      SELECT 1 FROM creator_tag_access cta 
+      WHERE cta.tag_id = t.id AND cta.creator_id = $1
+    )
+  )
+ORDER BY t.name ASC
+`
+
+func (q *Queries) ListAccessibleTags(ctx context.Context, id uuid.UUID) ([]Tag, error) {
+	rows, err := q.query(ctx, q.listAccessibleTagsStmt, listAccessibleTags, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Tag
+	for rows.Next() {
+		var i Tag
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.ColorSchema,
+			&i.OrgID,
+			&i.CreatedAt,
+			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1704,9 +1964,16 @@ func (q *Queries) ListFunnels(ctx context.Context, arg ListFunnelsParams) ([]Lis
 const listObjectTypes = `-- name: ListObjectTypes :many
 SELECT o.id, o.name, o.icon, o.description, o.fields, o.created_at, o.is_public, o.gdp_measure_field
 FROM obj_type o
-JOIN creator c ON o.creator_id = c.id
-WHERE c.org_id = $1
-  AND o.deleted_at IS NULL
+WHERE o.deleted_at IS NULL
+  AND (
+    o.creator_id IN (SELECT c_sub.id FROM creator c_sub WHERE c_sub.org_id = $1)
+    OR EXISTS (
+        SELECT 1 FROM obj_type_value otv
+        JOIN obj obj2 ON otv.obj_id = obj2.id
+        JOIN creator c2 ON obj2.creator_id = c2.id
+        WHERE otv.type_id = o.id AND c2.org_id = $1
+    )
+  )
   AND ($2::text = '' OR 
     o.name ILIKE '%' || $2 || '%' OR 
     o.description ILIKE '%' || $2 || '%' OR
@@ -1852,6 +2119,76 @@ func (q *Queries) ListOrgMembers(ctx context.Context, arg ListOrgMembersParams) 
 			&i.Role,
 			&i.Active,
 			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRecentObjectStepChangesByOrgID = `-- name: ListRecentObjectStepChangesByOrgID :many
+SELECT 
+    os.id,
+    o.name AS object_name,
+    s.name AS step_name,
+    f.name AS funnel_name,
+    c.username AS creator_name,
+    os.last_updated
+FROM 
+    obj_step os
+JOIN 
+    obj o ON os.obj_id = o.id
+JOIN 
+    step s ON os.step_id = s.id
+JOIN 
+    funnel f ON s.funnel_id = f.id
+JOIN 
+    creator c ON os.creator_id = c.id
+WHERE 
+    c.org_id = $1 
+    AND os.deleted_at IS NULL
+ORDER BY 
+    os.last_updated DESC
+LIMIT $2 OFFSET 0
+`
+
+type ListRecentObjectStepChangesByOrgIDParams struct {
+	OrgID uuid.UUID `json:"org_id"`
+	Limit int32     `json:"limit"`
+}
+
+type ListRecentObjectStepChangesByOrgIDRow struct {
+	ID          uuid.UUID `json:"id"`
+	ObjectName  string    `json:"object_name"`
+	StepName    string    `json:"step_name"`
+	FunnelName  string    `json:"funnel_name"`
+	CreatorName string    `json:"creator_name"`
+	LastUpdated time.Time `json:"last_updated"`
+}
+
+func (q *Queries) ListRecentObjectStepChangesByOrgID(ctx context.Context, arg ListRecentObjectStepChangesByOrgIDParams) ([]ListRecentObjectStepChangesByOrgIDRow, error) {
+	rows, err := q.query(ctx, q.listRecentObjectStepChangesByOrgIDStmt, listRecentObjectStepChangesByOrgID, arg.OrgID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListRecentObjectStepChangesByOrgIDRow
+	for rows.Next() {
+		var i ListRecentObjectStepChangesByOrgIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ObjectName,
+			&i.StepName,
+			&i.FunnelName,
+			&i.CreatorName,
+			&i.LastUpdated,
 		); err != nil {
 			return nil, err
 		}
@@ -2360,6 +2697,21 @@ func (q *Queries) RevokeAccessToObjectType(ctx context.Context, arg RevokeAccess
 	return err
 }
 
+const revokeAccessToTag = `-- name: RevokeAccessToTag :exec
+DELETE FROM creator_tag_access
+WHERE creator_id = $1 AND tag_id = $2
+`
+
+type RevokeAccessToTagParams struct {
+	CreatorID uuid.UUID `json:"creator_id"`
+	TagID     uuid.UUID `json:"tag_id"`
+}
+
+func (q *Queries) RevokeAccessToTag(ctx context.Context, arg RevokeAccessToTagParams) error {
+	_, err := q.exec(ctx, q.revokeAccessToTagStmt, revokeAccessToTag, arg.CreatorID, arg.TagID)
+	return err
+}
+
 const softDeleteObjStep = `-- name: SoftDeleteObjStep :exec
 
 UPDATE obj_step
@@ -2550,9 +2902,9 @@ func (q *Queries) UpdateObjStepSubStatus(ctx context.Context, arg UpdateObjStepS
 
 const updateObject = `-- name: UpdateObject :one
 UPDATE obj
-SET name = $2, description = $3, id_string = $4, aliases = $5
+SET name = $2, description = $3, id_string = $4, aliases = $5, photo = $6
 WHERE id = $1
-RETURNING id, name, photo, description, id_string, creator_id, created_at, deleted_at, aliases
+RETURNING id, name, photo, description, id_string, creator_id, created_at, deleted_at, aliases, org_id
 `
 
 type UpdateObjectParams struct {
@@ -2561,6 +2913,7 @@ type UpdateObjectParams struct {
 	Description string    `json:"description"`
 	IDString    string    `json:"id_string"`
 	Aliases     []string  `json:"aliases"`
+	Photo       string    `json:"photo"`
 }
 
 func (q *Queries) UpdateObject(ctx context.Context, arg UpdateObjectParams) (Obj, error) {
@@ -2570,6 +2923,7 @@ func (q *Queries) UpdateObject(ctx context.Context, arg UpdateObjectParams) (Obj
 		arg.Description,
 		arg.IDString,
 		pq.Array(arg.Aliases),
+		arg.Photo,
 	)
 	var i Obj
 	err := row.Scan(
@@ -2582,6 +2936,7 @@ func (q *Queries) UpdateObject(ctx context.Context, arg UpdateObjectParams) (Obj
 		&i.CreatedAt,
 		&i.DeletedAt,
 		pq.Array(&i.Aliases),
+		&i.OrgID,
 	)
 	return i, err
 }

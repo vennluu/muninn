@@ -46,15 +46,17 @@ export const AdvancedFilterContainer: React.FC<
   });
 
   const toast = useToast();
-  if (error) {
-    toast({
-      title: 'Error fetching data',
-      description: error.message,
-      status: 'error',
-      duration: 5000,
-      isClosable: true,
-    });
-  }
+  React.useEffect(() => {
+    if (error) {
+      toast({
+        title: 'Error fetching data',
+        description: error.message,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  }, [error, toast]);
 
   const [showFilterPanel, setShowFilterPanel] = React.useState(true);
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useHistory, useParams } from 'react-router-dom';
 import { Box, Flex, IconButton, VStack } from '@chakra-ui/react';
 import BreadcrumbComponent from 'src/components/Breadcrumb';
 import { getCreatorList } from 'src/api/list';
@@ -17,6 +17,7 @@ import { FilterConfig } from 'src/types/FilterConfig';
 
 const ViewDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const history = useHistory();
   const [view, setView] = useState<CreatorList | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
@@ -34,6 +35,10 @@ const ViewDetailPage: React.FC = () => {
   }, [id]);
 
   const handleFilterChange = (filter: FilterConfig) => {};
+
+  const handleObjectClick = (objectId: string) => {
+    history.push(`/objects/${objectId}`);
+  };
 
   return (
     <Box>
@@ -87,6 +92,7 @@ const ViewDetailPage: React.FC = () => {
               <ObjectsByFunnel
                 funnelId={view.list_filter_setting.funnelId}
                 getFunnelView={getFunnelView}
+                onObjectClick={handleObjectClick}
               />
             )}
           </VStack>

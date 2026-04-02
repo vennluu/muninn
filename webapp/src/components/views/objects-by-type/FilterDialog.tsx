@@ -69,13 +69,21 @@ const FilterDialog: React.FC<FilterDialogProps> = ({
     }
   };
 
-  const handleApplyFilter = () => {
-    onApplyFilter({
+    const handleApplyFilter = () => {
+    const newFilter: ObjectTypeFilter = {
       ...initialFilters,
       keyValues: { ...selectedFields },
       tags: selectedTags,
       displayColumns: selectedColumns,
-    });
+    };
+
+    if (selectedTags.length > 0) {
+      newFilter.tags = selectedTags;
+    } else {
+      delete newFilter.tags;
+    }
+
+    onApplyFilter(newFilter);
     onClose();
   };
 

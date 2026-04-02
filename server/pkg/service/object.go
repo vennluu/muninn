@@ -45,6 +45,7 @@ func (o OrderBy) IsValid() bool {
 type ListObjectsParams struct {
 	pagination.Params
 	OrgID             uuid.UUID
+	CreatorID         uuid.UUID
 	SearchQuery       string
 	StepIDs           []uuid.UUID       // Filter by steps
 	TagIDs            []uuid.UUID       // Filter by tags
@@ -89,7 +90,6 @@ func (s *ObjectService) ListObjects(ctx context.Context, params ListObjectsParam
 		return nil, fmt.Errorf("invalid parameters: %w", err)
 	}
 
-	// Prepare type value criteria
 	nullableCriteria1 := json.RawMessage("null")
 	nullableCriteria2 := json.RawMessage("null")
 	nullableCriteria3 := json.RawMessage(`null`)
@@ -135,8 +135,10 @@ func (s *ObjectService) ListObjects(ctx context.Context, params ListObjectsParam
 		Column7: nullableCriteria2,
 		Column8: nullableCriteria3,
 		Column9: subStatusFilter,
+		ID:      params.CreatorID,
 	})
 	if err != nil {
+		log.Printf("ERROR CountObjectsAdvanced: %v", err)
 		return nil, fmt.Errorf("error counting objects: %w", err)
 	}
 	listParams := database.ListObjectsAdvancedParams{
@@ -151,12 +153,14 @@ func (s *ObjectService) ListObjects(ctx context.Context, params ListObjectsParam
 		Column9:  string(params.OrderBy),
 		Column10: params.Ascending,
 		Column11: params.TypeValueField,
+		ID:       params.CreatorID,
 		Limit:    params.PageSize,
 		Offset:   params.GetOffset(),
 		Column14: subStatusFilter,
 	}
 	items, err := s.db.ListObjectsAdvanced(ctx, listParams)
 	if err != nil {
+		log.Printf("ERROR ListObjectsAdvanced: %v", err)
 		return nil, fmt.Errorf("error listing objects: %w", err)
 	}
 	// loop through each item and JSON.Unmarshal the tags and type_values, steps

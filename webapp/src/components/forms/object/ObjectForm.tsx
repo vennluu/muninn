@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Modal,
   ModalOverlay,
@@ -19,6 +19,8 @@ import {
   InputLeftElement,
   Stack,
   Divider,
+  Box,
+  IconButton,
 } from '@chakra-ui/react';
 import { v4 as uuidv4 } from 'uuid';
 import { NewObject, UpdateObject } from 'src/types';
@@ -26,7 +28,7 @@ import MarkdownEditor from 'src/components/mardown/MardownEditor';
 import { normalizeToIdStyle } from 'src/utils/text';
 import authService from 'src/services/authService';
 import AliasInput from './AliasInput';
-import { FaGithub, FaTwitter, FaDiscord, FaLink } from 'react-icons/fa';
+import { FaGithub, FaTwitter, FaDiscord, FaLink, FaImage } from 'react-icons/fa';
 
 interface ObjectFormProps {
   isOpen: boolean;
@@ -46,6 +48,7 @@ const ObjectForm: React.FC<ObjectFormProps> = ({
   onDeleteObject,
 }) => {
   const [name, setName] = useState(initialObject?.name || '');
+  const [photo, setPhoto] = useState(initialObject?.photo || '');
   const [idString, setIDString] = useState(initialObject?.idString || uuidv4());
   const [description, setDescription] = useState(
     initialObject?.description || ''
@@ -54,6 +57,7 @@ const ObjectForm: React.FC<ObjectFormProps> = ({
     initialObject?.aliases || []
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDirty, setIsDirty] = useState(false);
   const toast = useToast();
 
@@ -95,7 +99,7 @@ const ObjectForm: React.FC<ObjectFormProps> = ({
     setIsSubmitting(true);
     if (!initialObject && onCreateObject) {
       try {
-        await onCreateObject({ name, description, idString, aliases });
+        await onCreateObject({ name, photo, description, idString, aliases });
         toast({
           title: 'Success',
           description: 'Object successfully created.',
@@ -123,6 +127,7 @@ const ObjectForm: React.FC<ObjectFormProps> = ({
         await onUpdateObject({
           id: initialObject.id,
           name,
+          photo,
           description,
           idString,
           aliases,
@@ -155,13 +160,41 @@ const ObjectForm: React.FC<ObjectFormProps> = ({
     setIDString(uuidv4());
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (event.target?.result) {
+            setPhoto(event.target.result as string);
+            setIsDirty(true);
+          }
+        };
+        reader.readAsDataURL(file);
+      } else {
+        toast({
+          title: 'Invalid file type',
+          description: 'Please select an image file.',
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+      // Reset input value so the same file can be selected again if needed
+      e.target.value = '';
+    }
+  };
+
   const onReset = () => {
     if (!initialObject) {
       setName('');
+      setPhoto('');
       setIDString(uuidv4());
       setDescription('');
     } else {
       setName(initialObject.name);
+      setPhoto(initialObject.photo || '');
       setIDString(initialObject.idString);
       setDescription(initialObject.description);
     }
@@ -199,6 +232,78 @@ const ObjectForm: React.FC<ObjectFormProps> = ({
                   }}
                   placeholder='Enter object name'
                 />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Photo URL or Drop Image</FormLabel>
+                <Box
+                  position='relative'
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.currentTarget.style.borderColor = 'blue.500';
+                    e.currentTarget.style.backgroundColor = 'blue.50';
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.currentTarget.style.borderColor = 'inherit';
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.currentTarget.style.borderColor = 'inherit';
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                      const file = e.dataTransfer.files[0];
+                      if (file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          if (event.target?.result) {
+                            setPhoto(event.target.result as string);
+                            setIsDirty(true);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      } else {
+                        toast({
+                          title: 'Invalid file type',
+                          description: 'Please drop an image file.',
+                          status: 'error',
+                          duration: 3000,
+                          isClosable: true,
+                        });
+                      }
+                    }
+                  }}
+                >
+                  <InputGroup>
+                    <Input
+                      value={photo}
+                      onChange={(e) => {
+                        setIsDirty(true);
+                        setPhoto(e.target.value);
+                      }}
+                      placeholder='Enter photo URL or drop an image file here'
+                    />
+                    <InputRightAddon p={0}>
+                      <IconButton
+                        aria-label="Upload from PC"
+                        icon={<FaImage />}
+                        onClick={() => fileInputRef.current?.click()}
+                        variant="ghost"
+                        borderLeftRadius={0}
+                      />
+                    </InputRightAddon>
+                  </InputGroup>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    ref={fileInputRef}
+                    style={{ display: 'none' }}
+                    onChange={handleFileSelect}
+                  />
+                </Box>
               </FormControl>
               <FormControl isRequired>
                 <FormLabel>ID String</FormLabel>

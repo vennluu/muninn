@@ -72,12 +72,16 @@ func SetupRouter(queries *database.Queries, db *sql.DB) *chi.Mux {
 
 	publicHandler := handlers.NewPublicHandler(queries)
 	r.Get("/public/stats", publicHandler.GetStats)
+	r.Get("/public/summary", publicHandler.GetSummary)
 	r.Get("/public/feed", publicHandler.GetFeed)
 	r.Get("/public/top-objects", publicHandler.GetTopObjects)
 	r.Get("/public/orgs", publicHandler.ListOrganizations)
 	r.Get("/public/object-types", publicHandler.GetObjectTypes)
 	r.Get("/public/objects-by-type", publicHandler.GetObjectsByType)
 	r.Get("/public/objects/{objectId}", publicHandler.GetObjectDetail)
+	r.Get("/public/gdp/stats", publicHandler.GetGDPStats)
+	r.Get("/public/funnels", publicHandler.ListFunnels)
+	r.Get("/public/funnels/{id}/view", publicHandler.GetFunnelView)
 
 	r.Get("/stats", handlers.HealthCheck(queries))
 
@@ -95,10 +99,15 @@ func SetupRouter(queries *database.Queries, db *sql.DB) *chi.Mux {
 			r.Use(middleware.Permission)
 			r.Post("/", tagHandler.CreateTag)
 			r.Get("/", tagHandler.ListTags)
-			r.Put("/{id}", tagHandler.UpdateTag)
-			r.Get("/{id}", tagHandler.GetTag)
 			r.Get("/ids", tagHandler.GetTags)
+			r.Post("/access", tagHandler.GrantAccessToTag)
+			r.Delete("/access/{creatorID}/{tagID}", tagHandler.RevokeAccessToTag)
+			r.Delete("/access/{creatorID}", tagHandler.RevokeAccessToTagByQuery)
+			r.Get("/access/{creatorID}", tagHandler.GetAccessibleTagsForMember)
+			r.Get("/access-member/{creatorID}", tagHandler.GetAccessibleTagsForMember)
+			r.Put("/{id}", tagHandler.UpdateTag)
 			r.Delete("/{id}", tagHandler.DeleteTag)
+			r.Get("/{id}", tagHandler.GetTag)
 		})
 
 		r.Route("/setting/object-types", func(r chi.Router) {
@@ -211,6 +220,7 @@ func SetupRouter(queries *database.Queries, db *sql.DB) *chi.Mux {
 		r.Route("/summarize", func(r chi.Router) {
 			r.Use(middleware.Permission)
 			r.Get("/personal", summarizeHandler.PersonalSummarize)
+			r.Get("/team", summarizeHandler.TeamSummarize)
 		})
 
 		r.Route("/external", func(r chi.Router) {

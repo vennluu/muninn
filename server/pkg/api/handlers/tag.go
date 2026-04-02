@@ -169,6 +169,130 @@ func (h *TagHandler) ListTags(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func (h *TagHandler) GrantAccessToTag(w http.ResponseWriter, r *http.Request) {
+	claims := r.Context().Value(middleware.UserClaimsKey).(*middleware.Claims)
+	if claims.Role != "admin" {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	var req struct {
+		CreatorID uuid.UUID `json:"creator_id"`
+		TagID     uuid.UUID `json:"tag_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err := h.DB.GrantAccessToTag(r.Context(), database.GrantAccessToTagParams{
+		CreatorID: req.CreatorID,
+		TagID:     req.TagID,
+	})
+
+	if err != nil {
+		http.Error(w, "Failed to grant access", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *TagHandler) RevokeAccessToTag(w http.ResponseWriter, r *http.Request) {
+	claims := r.Context().Value(middleware.UserClaimsKey).(*middleware.Claims)
+	if claims.Role != "admin" {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	creatorID, err := uuid.Parse(chi.URLParam(r, "creatorID"))
+	if err != nil {
+		http.Error(w, "Invalid creator ID", http.StatusBadRequest)
+		return
+	}
+
+	tagID, err := uuid.Parse(chi.URLParam(r, "tagID"))
+	if err != nil {
+		http.Error(w, "Invalid tag ID", http.StatusBadRequest)
+		return
+	}
+
+	err = h.DB.RevokeAccessToTag(r.Context(), database.RevokeAccessToTagParams{
+		CreatorID: creatorID,
+		TagID:     tagID,
+	})
+
+	if err != nil {
+		http.Error(w, "Failed to revoke access", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *TagHandler) RevokeAccessToTagByQuery(w http.ResponseWriter, r *http.Request) {
+	claims := r.Context().Value(middleware.UserClaimsKey).(*middleware.Claims)
+	if claims.Role != "admin" {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	creatorID, err := uuid.Parse(chi.URLParam(r, "creatorID"))
+	if err != nil {
+		http.Error(w, "Invalid creator ID", http.StatusBadRequest)
+		return
+	}
+
+	tagIDStr := r.URL.Query().Get("tag_id")
+	if tagIDStr == "" {
+		tagIDStr = r.URL.Query().Get("tagID")
+	}
+	if tagIDStr == "" {
+		http.Error(w, "tag_id is required", http.StatusBadRequest)
+		return
+	}
+
+	tagID, err := uuid.Parse(tagIDStr)
+	if err != nil {
+		http.Error(w, "Invalid tag ID", http.StatusBadRequest)
+		return
+	}
+
+	err = h.DB.RevokeAccessToTag(r.Context(), database.RevokeAccessToTagParams{
+		CreatorID: creatorID,
+		TagID:     tagID,
+	})
+	if err != nil {
+		http.Error(w, "Failed to revoke access", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *TagHandler) GetAccessibleTagsForMember(w http.ResponseWriter, r *http.Request) {
+	claims := r.Context().Value(middleware.UserClaimsKey).(*middleware.Claims)
+	if claims.Role != "admin" {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	creatorID, err := uuid.Parse(chi.URLParam(r, "creatorID"))
+	if err != nil {
+		http.Error(w, "Invalid creator ID", http.StatusBadRequest)
+		return
+	}
+
+	tags, err := h.DB.ListAccessibleTags(r.Context(), creatorID)
+	if err != nil {
+		http.Error(w, "Failed to get accessible tags", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(tags)
+}
+
 func (h *TagHandler) GetTag(w http.ResponseWriter, r *http.Request) {
 	tagID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {

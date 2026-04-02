@@ -41,9 +41,16 @@ WHERE obj_type.id = $1 AND deleted_at IS NULL
 -- name: ListObjectTypes :many
 SELECT o.id, o.name, o.icon, o.description, o.fields, o.created_at, o.is_public, o.gdp_measure_field
 FROM obj_type o
-JOIN creator c ON o.creator_id = c.id
-WHERE c.org_id = $1
-  AND o.deleted_at IS NULL
+WHERE o.deleted_at IS NULL
+  AND (
+    o.creator_id IN (SELECT c_sub.id FROM creator c_sub WHERE c_sub.org_id = $1)
+    OR EXISTS (
+        SELECT 1 FROM obj_type_value otv
+        JOIN obj obj2 ON otv.obj_id = obj2.id
+        JOIN creator c2 ON obj2.creator_id = c2.id
+        WHERE otv.type_id = o.id AND c2.org_id = $1
+    )
+  )
   AND ($2::text = '' OR 
     o.name ILIKE '%' || $2 || '%' OR 
     o.description ILIKE '%' || $2 || '%' OR
@@ -59,9 +66,16 @@ LIMIT 1;
 -- name: CountObjectTypes :one
 SELECT COUNT(*) 
 FROM obj_type o
-JOIN creator c ON o.creator_id = c.id
-WHERE c.org_id = $1
-  AND o.deleted_at IS NULL
+WHERE o.deleted_at IS NULL
+  AND (
+    o.creator_id IN (SELECT c_sub.id FROM creator c_sub WHERE c_sub.org_id = $1)
+    OR EXISTS (
+        SELECT 1 FROM obj_type_value otv
+        JOIN obj obj2 ON otv.obj_id = obj2.id
+        JOIN creator c2 ON obj2.creator_id = c2.id
+        WHERE otv.type_id = o.id AND c2.org_id = $1
+    )
+  )
   AND ($2::text = '' OR 
     o.name ILIKE '%' || $2 || '%' OR 
     o.description ILIKE '%' || $2 || '%' OR
@@ -111,15 +125,17 @@ SET name = $2, description = $3
 WHERE id = $1 AND deleted_at IS NULL
 RETURNING *;
 
--- name: DeleteFunnel :exec
+-- name: DeleteFunnel :execrows
 UPDATE funnel
 SET deleted_at = CURRENT_TIMESTAMP
 WHERE funnel.id = $1 AND deleted_at IS NULL
   AND NOT EXISTS (
     SELECT 1 FROM obj_step os
     JOIN step s ON s.id = os.step_id
+    JOIN obj o ON o.id = os.obj_id
     WHERE s.funnel_id = $1
     AND os.deleted_at IS NULL
+    AND o.deleted_at IS NULL
   );
 
 -- name: CreateStep :one
@@ -180,18 +196,21 @@ AND ($2::text = '' OR (
 ));
 
 -- name: CreateObject :one
-INSERT INTO obj (name, description, id_string, creator_id)
-VALUES ($1, $2, $3, $4)
+INSERT INTO obj (name, description, id_string, creator_id, photo, org_id)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
 
 -- name: UpdateObject :one
 UPDATE obj
-SET name = $2, description = $3, id_string = $4, aliases = $5
+SET name = $2, description = $3, id_string = $4, aliases = $5, photo = $6
 WHERE id = $1
 RETURNING *;
 
 -- name: DeleteObject :exec
 UPDATE obj SET deleted_at = NOW() WHERE id = $1;
+
+-- name: GetObjectByID :one
+SELECT * FROM obj WHERE id = $1;
 
 -- name: GetObjectDetails :one
 WITH object_data AS (
@@ -224,6 +243,7 @@ WITH object_data AS (
                'stepName', s.name,
                'funnelId', f.id,
                'funnelName', f.name,
+               'funnelDeletedAt', f.deleted_at,
                'subStatus', os.sub_status,
                'createdAt', os.created_at,
                'deletedAt', os.deleted_at,
@@ -252,7 +272,7 @@ WITH object_data AS (
     LEFT JOIN obj_fact of ON o.id = of.obj_id
     LEFT JOIN fact ON of.fact_id = fact.id
     WHERE o.id = $1 AND c.org_id = $2
-    GROUP BY o.id, o.name, o.description, o.id_string, o.creator_id, o.created_at, c.org_id, o.aliases
+    GROUP BY o.id, o.name, o.photo, o.description, o.id_string, o.creator_id, o.created_at, c.org_id, o.aliases
 )
 SELECT *
 FROM object_data;
@@ -283,14 +303,15 @@ WITH org_check AS (
   FROM
     obj o
   JOIN
-    creator c_obj ON o.creator_id = c_obj.id -- Join the creator of obj
+    creator c_obj ON o.creator_id = c_obj.id
   JOIN
-    obj_type ot ON ot.id = $2               -- obj_type_id parameter
+    obj_type ot ON ot.id = $2
   JOIN
-    creator c_ot ON ot.creator_id = c_ot.id -- Join the creator of obj_type
+    creator c_ot ON ot.creator_id = c_ot.id
   WHERE
-    c_obj.org_id = c_ot.org_id              -- Ensure both creators belong to the same org
-    AND o.id = $1                           -- obj_id parameter
+    c_obj.org_id = c_ot.org_id
+    AND c_obj.org_id = $4
+    AND o.id = $1
 )
 INSERT INTO obj_type_value (obj_id, type_id, type_values)
 SELECT $1, $2, $3::jsonb
@@ -306,6 +327,12 @@ AND EXISTS (
   JOIN creator c ON o.creator_id = c.id
   WHERE o.id = obj_type_value.obj_id AND c.org_id = $2
 );
+
+-- name: GetObjectTypeIDsByObjectID :many
+SELECT type_id FROM obj_type_value WHERE obj_id = $1;
+
+-- name: GetObjectTypeIDByTypeValueID :one
+SELECT type_id FROM obj_type_value WHERE id = $1;
 
 -- name: UpdateObjectTypeValue :one
 UPDATE obj_type_value
@@ -645,8 +672,6 @@ WHERE deleted_at IS NULL AND ( assigned_id = $1
 OR creator_id = $1 )
 AND status in ('todo', 'doing');
 
--- Add these new queries to your existing queries.sql file
-
 -- name: CreateFact :one
 INSERT INTO fact (text, happened_at, location, creator_id)
 VALUES ($1, $2, $3, $4)
@@ -735,7 +760,7 @@ DELETE FROM obj_fact
 WHERE fact_id = $1 AND obj_id = ANY($2::uuid[]);
 
 -- name: GetObjectsForStep :many
-SELECT o.id, o.name, o.description,
+SELECT o.id, o.name, o.description, o.photo,
        coalesce(json_agg(json_build_object('id', t.id, 'name', t.name, 'color_schema', t.color_schema)) FILTER (WHERE t.id IS NOT NULL), '[]') AS tags
 FROM obj o
 JOIN obj_step os ON o.id = os.obj_id
@@ -771,14 +796,16 @@ WHERE creator_id = $1;
 -- name: ListAccessibleObjectTypes :many
 SELECT DISTINCT o.id, o.name, o.icon, o.description, o.fields, o.created_at, o.is_public, o.gdp_measure_field
 FROM obj_type o
-LEFT JOIN creator_obj_type_access cota ON o.id = cota.obj_type_id AND cota.creator_id = $1
 JOIN creator c_owner ON o.creator_id = c_owner.id
-JOIN creator c_user ON c_user.id = $1
 WHERE 
   o.deleted_at IS NULL
+  AND c_owner.org_id = (SELECT c_sub.org_id FROM creator c_sub WHERE c_sub.id = $1)
   AND (
-    cota.creator_id IS NOT NULL 
-    OR (o.is_public = true AND c_owner.org_id = c_user.org_id)
+    (SELECT c_sub2.role FROM creator c_sub2 WHERE c_sub2.id = $1) = 'admin'
+    OR EXISTS (
+      SELECT 1 FROM creator_obj_type_access cota 
+      WHERE cota.obj_type_id = o.id AND cota.creator_id = $1
+    )
   )
   AND ($2::text = '' OR 
     o.name ILIKE '%' || $2 || '%' OR 
@@ -790,22 +817,92 @@ LIMIT $3 OFFSET $4;
 -- name: CountAccessibleObjectTypes :one
 SELECT COUNT(DISTINCT o.id)
 FROM obj_type o
-LEFT JOIN creator_obj_type_access cota ON o.id = cota.obj_type_id AND cota.creator_id = $1
 JOIN creator c_owner ON o.creator_id = c_owner.id
-JOIN creator c_user ON c_user.id = $1
 WHERE 
   o.deleted_at IS NULL
+  AND c_owner.org_id = (SELECT c_sub.org_id FROM creator c_sub WHERE c_sub.id = $1)
   AND (
-    cota.creator_id IS NOT NULL 
-    OR (o.is_public = true AND c_owner.org_id = c_user.org_id)
+    (SELECT c_sub2.role FROM creator c_sub2 WHERE c_sub2.id = $1) = 'admin'
+    OR EXISTS (
+      SELECT 1 FROM creator_obj_type_access cota 
+      WHERE cota.obj_type_id = o.id AND cota.creator_id = $1
+    )
   )
   AND ($2::text = '' OR 
     o.name ILIKE '%' || $2 || '%' OR 
     o.description ILIKE '%' || $2 || '%' OR
     o.fields_search @@ to_tsquery('english', $2));
 
--- name: HasAccessToObjectType :one
+-- name: HasViewAccessToObjectType :one
 SELECT EXISTS (
     SELECT 1 FROM creator_obj_type_access
     WHERE creator_id = $1 AND obj_type_id = $2
 );
+
+-- name: HasEditAccessToObjectType :one
+SELECT EXISTS (
+    SELECT 1 FROM creator_obj_type_access
+    WHERE creator_id = $1 AND obj_type_id = $2
+);
+
+-- name: GrantAccessToTag :exec
+INSERT INTO creator_tag_access (creator_id, tag_id)
+VALUES ($1, $2)
+ON CONFLICT (creator_id, tag_id) DO NOTHING;
+
+-- name: RevokeAccessToTag :exec
+DELETE FROM creator_tag_access
+WHERE creator_id = $1 AND tag_id = $2;
+
+-- name: ListAccessibleTags :many
+SELECT t.* FROM tag t
+JOIN creator c_owner ON t.creator_id = c_owner.id
+WHERE t.deleted_at IS NULL
+  AND c_owner.org_id = (SELECT c_sub.org_id FROM creator c_sub WHERE c_sub.id = $1)
+  AND (
+    (SELECT c_sub2.role FROM creator c_sub2 WHERE c_sub2.id = $1) = 'admin'
+    OR EXISTS (
+      SELECT 1 FROM creator_tag_access cta 
+      WHERE cta.tag_id = t.id AND cta.creator_id = $1
+    )
+  )
+ORDER BY t.name ASC;
+
+-- name: GetAccessibleTagIDsForMember :many
+SELECT tag_id FROM creator_tag_access
+WHERE creator_id = $1;
+-- name: ListRecentObjectStepChangesByOrgID :many
+SELECT 
+    os.id,
+    o.name AS object_name,
+    s.name AS step_name,
+    f.name AS funnel_name,
+    c.username AS creator_name,
+    os.last_updated
+FROM 
+    obj_step os
+JOIN 
+    obj o ON os.obj_id = o.id
+JOIN 
+    step s ON os.step_id = s.id
+JOIN 
+    funnel f ON s.funnel_id = f.id
+JOIN 
+    creator c ON os.creator_id = c.id
+WHERE 
+    c.org_id = $1 
+    AND os.deleted_at IS NULL
+ORDER BY 
+    os.last_updated DESC
+LIMIT $2 OFFSET 0;
+
+-- name: GetImportTasksByOrg :many
+SELECT * FROM import_task
+WHERE org_id = $1
+ORDER BY created_at DESC
+LIMIT $2 OFFSET $3;
+
+-- name: CountImportTasksByOrg :one
+SELECT COUNT(*) FROM import_task
+WHERE org_id = $1;
+

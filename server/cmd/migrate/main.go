@@ -32,6 +32,8 @@ func main() {
 		"migrations/002_add_is_gdp_to_obj_type.sql",
 		"migrations/003_replace_is_gdp_with_measure_field.sql",
 		"migrations/004_add_creator_access_obj_type.sql",
+		"migrations/005_add_org_id_to_obj.sql",
+		"migrations/006_add_creator_tag_access.sql",
 	}
 
 	for _, mFile := range migrations {

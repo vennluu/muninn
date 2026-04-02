@@ -3,7 +3,6 @@ package handlers
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -11,9 +10,9 @@ import (
 	"time"
 
 	"github.com/crea8r/muninn/server/pkg/api/middleware"
+	"github.com/crea8r/muninn/server/pkg/ctype"
 	"github.com/crea8r/muninn/server/pkg/database"
 	"github.com/crea8r/muninn/server/pkg/models"
-	"github.com/crea8r/muninn/server/pkg/ctype"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -134,7 +133,7 @@ func (h *FunnelHandler) UpdateFunnel(w http.ResponseWriter, r *http.Request) {
 	// Update obj_step mappings
 	for oldStepID, newStepID := range update.StepMapping {
 		err := h.db.UpdateObjStep(ctx, database.UpdateObjStepParams{
-			StepID:    uuid.MustParse(oldStepID),
+			StepID:   uuid.MustParse(oldStepID),
 			StepID_2: uuid.MustParse(newStepID),
 		})
 		if err != nil {
@@ -146,20 +145,27 @@ func (h *FunnelHandler) UpdateFunnel(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *FunnelHandler) DeleteFunnel(w http.ResponseWriter, r *http.Request) {
-	funnelID := chi.URLParam(r, "id")
-	if funnelID == "" {
+	funnelIDStr := chi.URLParam(r, "id")
+	if funnelIDStr == "" {
 		http.Error(w, "Missing funnel ID", http.StatusBadRequest)
 		return
 	}
 
-	ctx := r.Context()
-	err := h.db.DeleteFunnel(ctx, uuid.MustParse(funnelID))
+	funnelID, err := uuid.Parse(funnelIDStr)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			http.Error(w, "Funnel not found or cannot be deleted due to existing references", http.StatusNotFound)
-		} else {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+		http.Error(w, "Invalid funnel ID", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	rowsAffected, err := h.db.DeleteFunnel(ctx, funnelID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if rowsAffected == 0 {
+		http.Error(w, "Funnel not found or cannot be deleted due to existing references", http.StatusNotFound)
 		return
 	}
 
@@ -167,27 +173,27 @@ func (h *FunnelHandler) DeleteFunnel(w http.ResponseWriter, r *http.Request) {
 }
 
 type ListFunnelsRowWithStep struct {
-	ID          uuid.UUID    `json:"id"`
-	Name        string       `json:"name"`
-	Description string       `json:"description"`
-	CreatorID   uuid.UUID    `json:"creator_id"`
-	CreatedAt   time.Time    `json:"created_at"`
-	DeletedAt   ctype.NullTime `json:"deleted_at"`
-	OrgID       uuid.UUID    `json:"org_id"`
-	ObjectCount int64        `json:"object_count"`
-	Steps 			[]database.ListStepsByFunnelRow `json:"steps"`
+	ID          uuid.UUID                       `json:"id"`
+	Name        string                          `json:"name"`
+	Description string                          `json:"description"`
+	CreatorID   uuid.UUID                       `json:"creator_id"`
+	CreatedAt   time.Time                       `json:"created_at"`
+	DeletedAt   ctype.NullTime                  `json:"deleted_at"`
+	OrgID       uuid.UUID                       `json:"org_id"`
+	ObjectCount int64                           `json:"object_count"`
+	Steps       []database.ListStepsByFunnelRow `json:"steps"`
 }
 
 type FunnelViewResponse struct {
-	Funnel  database.GetFunnelRow        `json:"funnel"`
-	Steps   []StepWithObjects      `json:"steps"`
+	Funnel database.GetFunnelRow `json:"funnel"`
+	Steps  []StepWithObjects     `json:"steps"`
 }
 
 type StepWithObjects struct {
-	Step 				database.ListStepsByFunnelRow `json:"step"`
-	Objects     []ObjectSummary `json:"objects"`
-	TotalCount  int32           `json:"totalCount"`
-	CurrentPage int32           `json:"currentPage"`
+	Step        database.ListStepsByFunnelRow `json:"step"`
+	Objects     []ObjectSummary               `json:"objects"`
+	TotalCount  int32                         `json:"totalCount"`
+	CurrentPage int32                         `json:"currentPage"`
 }
 
 type ObjectSummary struct {
@@ -195,6 +201,7 @@ type ObjectSummary struct {
 	Name        string          `json:"name"`
 	Description string          `json:"description"`
 	Tags        json.RawMessage `json:"tags"`
+	Photo       string          `json:"photo"`
 }
 
 func (h *FunnelHandler) ListFunnels(w http.ResponseWriter, r *http.Request) {
@@ -214,10 +221,10 @@ func (h *FunnelHandler) ListFunnels(w http.ResponseWriter, r *http.Request) {
 	}
 
 	funnels, err := h.db.ListFunnels(ctx, database.ListFunnelsParams{
-		OrgID:  uuid.MustParse(orgID),
-		Column2:  query,
-		Limit:  int32(pageSize),
-		Offset: int32((page - 1) * pageSize),
+		OrgID:   uuid.MustParse(orgID),
+		Column2: query,
+		Limit:   int32(pageSize),
+		Offset:  int32((page - 1) * pageSize),
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -225,7 +232,7 @@ func (h *FunnelHandler) ListFunnels(w http.ResponseWriter, r *http.Request) {
 	}
 
 	totalCount, err := h.db.CountFunnels(ctx, database.CountFunnelsParams{
-		OrgID: uuid.MustParse(orgID),
+		OrgID:   uuid.MustParse(orgID),
 		Column2: query,
 	})
 	if err != nil {
@@ -252,9 +259,9 @@ func (h *FunnelHandler) ListFunnels(w http.ResponseWriter, r *http.Request) {
 
 	response := struct {
 		Funnels    []ListFunnelsRowWithStep `json:"funnels"`
-		TotalCount int64             `json:"totalCount"`
-		Page       int               `json:"page"`
-		PageSize   int               `json:"pageSize"`
+		TotalCount int64                    `json:"totalCount"`
+		Page       int                      `json:"page"`
+		PageSize   int                      `json:"pageSize"`
 	}{
 		Funnels:    funnelWithSteps,
 		TotalCount: totalCount,
@@ -277,7 +284,7 @@ func (h *FunnelHandler) GetFunnel(w http.ResponseWriter, r *http.Request) {
 	}
 	params := r.Context().Value(middleware.UserClaimsKey).(*middleware.Claims)
 	orgId := uuid.MustParse(params.OrgID)
-	
+
 	// Retrieve the funnel from the database
 	funnel, err := h.db.GetFunnel(ctx, funnelID)
 	if err != nil {
@@ -308,7 +315,7 @@ func (h *FunnelHandler) GetFunnel(w http.ResponseWriter, r *http.Request) {
 		DeletedAt:   ctype.NullTime{NullTime: funnel.DeletedAt},
 		OrgID:       funnel.OrgID,
 		ObjectCount: funnel.ObjectCount,
-		Steps:  steps,
+		Steps:       steps,
 	}
 
 	// Set the Content-Type header and encode the funnel as JSON
@@ -376,15 +383,15 @@ func (h *FunnelHandler) GetFunnelView(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *FunnelHandler) getObjectsForStep(ctx context.Context, stepID uuid.UUID, page int, searchQuery string) ([]ObjectSummary, int64, error) {
-	limit := 5 // Objects per page
+	limit := 1000 // Objects per page - Increased to show full data without pagination
 	offset := (page - 1) * limit
 
 	// Create a new query to fetch objects for a specific step with pagination and search
 	objects, err := h.db.GetObjectsForStep(ctx, database.GetObjectsForStepParams{
-		StepID:      stepID,
+		StepID:  stepID,
 		Column2: searchQuery,
-		Limit:       int32(limit),
-		Offset:      int32(offset),
+		Limit:   int32(limit),
+		Offset:  int32(offset),
 	})
 	if err != nil {
 		return nil, 0, err
@@ -392,7 +399,7 @@ func (h *FunnelHandler) getObjectsForStep(ctx context.Context, stepID uuid.UUID,
 
 	// Count total objects for the step (for pagination)
 	totalCount, err := h.db.CountObjectsForStep(ctx, database.CountObjectsForStepParams{
-		StepID:      stepID,
+		StepID:  stepID,
 		Column2: searchQuery,
 	})
 	if err != nil {
@@ -402,19 +409,20 @@ func (h *FunnelHandler) getObjectsForStep(ctx context.Context, stepID uuid.UUID,
 	objectSummaries := make([]ObjectSummary, len(objects))
 	for i, obj := range objects {
 		var tags json.RawMessage
-		tagsBytes, ok := obj.Tags.([]byte);
+		tagsBytes, ok := obj.Tags.([]byte)
 		if !ok {
-			fmt.Println("Cannot convert objects to bytes: ");
+			fmt.Println("Cannot convert objects to bytes: ")
 		}
-		err = json.Unmarshal(tagsBytes, &tags);
+		err = json.Unmarshal(tagsBytes, &tags)
 		if err != nil {
-			fmt.Println("Cannot marshal objects: ", err);
+			fmt.Println("Cannot marshal objects: ", err)
 		}
 		objectSummaries[i] = ObjectSummary{
 			ID:          obj.ID,
 			Name:        obj.Name,
 			Description: obj.Description,
 			Tags:        tags,
+			Photo:       obj.Photo,
 		}
 	}
 

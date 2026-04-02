@@ -241,10 +241,10 @@ func (h *ObjectTypeHandler) ListObjectTypes(w http.ResponseWriter, r *http.Reque
 	} else {
 		// For non-admins, list only accessible object types
 		accessibleTypes, err := h.DB.ListAccessibleObjectTypes(r.Context(), database.ListAccessibleObjectTypesParams{
-			CreatorID: uuid.MustParse(claims.CreatorID),
-			Column2:   query,
-			Limit:     int32(pageSize),
-			Offset:    int32(offset),
+			ID:      uuid.MustParse(claims.CreatorID),
+			Column2: query,
+			Limit:   int32(pageSize),
+			Offset:  int32(offset),
 		})
 		if err != nil {
 			http.Error(w, "Failed to list accessible object types", http.StatusInternalServerError)
@@ -267,8 +267,8 @@ func (h *ObjectTypeHandler) ListObjectTypes(w http.ResponseWriter, r *http.Reque
 		}
 
 		totalCount, err = h.DB.CountAccessibleObjectTypes(r.Context(), database.CountAccessibleObjectTypesParams{
-			CreatorID: uuid.MustParse(claims.CreatorID),
-			Column2:   query,
+			ID:      uuid.MustParse(claims.CreatorID),
+			Column2: query,
 		})
 	}
 
@@ -352,6 +352,35 @@ func (h *ObjectTypeHandler) GrantAccessToObjectType(w http.ResponseWriter, r *ht
 		return
 	}
 
+	// Verify isolation: both creator and object type must belong to the same organization
+	orgID := uuid.MustParse(claims.OrgID)
+
+	creator, err := h.DB.GetCreatorByID(r.Context(), creatorID)
+	if err != nil {
+		http.Error(w, "Creator not found", http.StatusNotFound)
+		return
+	}
+	if creator.OrgID != orgID {
+		http.Error(w, "Forbidden: Creator belongs to a different organization", http.StatusForbidden)
+		return
+	}
+
+	objType, err := h.DB.GetObjectTypeByID(r.Context(), objTypeID)
+	if err != nil {
+		http.Error(w, "Object type not found", http.StatusNotFound)
+		return
+	}
+	// We need to check the creator of the object type to get its orgId
+	typeCreator, err := h.DB.GetCreatorByID(r.Context(), objType.CreatorID)
+	if err != nil {
+		http.Error(w, "Failed to verify object type ownership", http.StatusInternalServerError)
+		return
+	}
+	if typeCreator.OrgID != orgID {
+		http.Error(w, "Forbidden: Object type belongs to a different organization", http.StatusForbidden)
+		return
+	}
+
 	err = h.DB.GrantAccessToObjectType(r.Context(), database.GrantAccessToObjectTypeParams{
 		CreatorID: creatorID,
 		ObjTypeID: objTypeID,
@@ -388,6 +417,35 @@ func (h *ObjectTypeHandler) RevokeAccessToObjectType(w http.ResponseWriter, r *h
 		return
 	}
 
+	// Verify isolation: both creator and object type must belong to the same organization
+	orgID := uuid.MustParse(claims.OrgID)
+
+	creator, err := h.DB.GetCreatorByID(r.Context(), creatorID)
+	if err != nil {
+		http.Error(w, "Creator not found", http.StatusNotFound)
+		return
+	}
+	if creator.OrgID != orgID {
+		http.Error(w, "Forbidden: Creator belongs to a different organization", http.StatusForbidden)
+		return
+	}
+
+	objType, err := h.DB.GetObjectTypeByID(r.Context(), objTypeID)
+	if err != nil {
+		http.Error(w, "Object type not found", http.StatusNotFound)
+		return
+	}
+	// We need to check the creator of the object type to get its orgId
+	typeCreator, err := h.DB.GetCreatorByID(r.Context(), objType.CreatorID)
+	if err != nil {
+		http.Error(w, "Failed to verify object type ownership", http.StatusInternalServerError)
+		return
+	}
+	if typeCreator.OrgID != orgID {
+		http.Error(w, "Forbidden: Object type belongs to a different organization", http.StatusForbidden)
+		return
+	}
+
 	err = h.DB.RevokeAccessToObjectType(r.Context(), database.RevokeAccessToObjectTypeParams{
 		CreatorID: creatorID,
 		ObjTypeID: objTypeID,
@@ -419,10 +477,10 @@ func (h *ObjectTypeHandler) GetAccessibleObjectTypesForMember(w http.ResponseWri
 	// This helps reusing the same query logic and providing more info if needed
 	// Note: We use empty search query and large limit to get all
 	objectTypes, err := h.DB.ListAccessibleObjectTypes(r.Context(), database.ListAccessibleObjectTypesParams{
-		CreatorID: creatorID,
-		Column2:   "", // No search filter
-		Limit:     1000,
-		Offset:    0,
+		ID:      creatorID,
+		Column2: "", // No search filter
+		Limit:   1000,
+		Offset:  0,
 	})
 
 	if err != nil {

@@ -14,6 +14,7 @@ import (
 type Object struct {
 	ID          uuid.UUID         `json:"id"`
 	Name        string            `json:"name"`
+	Photo       string            `json:"photo"`
 	Description string            `json:"description"`
 	IDString    string            `json:"idString"`
 	CreatorID   uuid.UUID         `json:"creatorId"`
@@ -55,6 +56,7 @@ type ObjectModel struct {
 type ObjectDetail struct {
 	ID              uuid.UUID         `json:"id"`
 	Name            string            `json:"name"`
+	Photo           string            `json:"photo"`
 	Description     string            `json:"description"`
 	IDString        string            `json:"idString"`
 	CreatorID       uuid.UUID         `json:"creatorId"`
@@ -100,12 +102,13 @@ func NewObjectModel(db *database.Queries) *ObjectModel {
 	return &ObjectModel{DB: db}
 }
 
-func (m *ObjectModel) Create(ctx context.Context, name, description, idString string, creatorID uuid.UUID) (*Object, error) {
+func (m *ObjectModel) Create(ctx context.Context, name, description, idString, photo string, creatorID uuid.UUID) (*Object, error) {
 	obj, err := m.DB.CreateObject(ctx, database.CreateObjectParams{
 		Name:        name,
 		Description: description,
 		IDString:    idString,
 		CreatorID:   creatorID,
+		Photo:       photo,
 	})
 	if err != nil {
 		return nil, err
@@ -114,6 +117,7 @@ func (m *ObjectModel) Create(ctx context.Context, name, description, idString st
 	return &Object{
 		ID:          obj.ID,
 		Name:        obj.Name,
+		Photo:       obj.Photo,
 		Description: obj.Description,
 		IDString:    obj.IDString,
 		CreatorID:   obj.CreatorID,
@@ -121,13 +125,14 @@ func (m *ObjectModel) Create(ctx context.Context, name, description, idString st
 	}, nil
 }
 
-func (m *ObjectModel) Update(ctx context.Context, id uuid.UUID, name, description, idString string, aliases []string) (*Object, error) {
+func (m *ObjectModel) Update(ctx context.Context, id uuid.UUID, name, description, idString, photo string, aliases []string) (*Object, error) {
 	obj, err := m.DB.UpdateObject(ctx, database.UpdateObjectParams{
 		ID:          id,
 		Name:        name,
 		Description: description,
 		IDString:    idString,
 		Aliases:     aliases,
+		Photo:       photo,
 	})
 	if err != nil {
 		return nil, err
@@ -136,6 +141,7 @@ func (m *ObjectModel) Update(ctx context.Context, id uuid.UUID, name, descriptio
 	return &Object{
 		ID:          obj.ID,
 		Name:        obj.Name,
+		Photo:       obj.Photo,
 		Description: obj.Description,
 		IDString:    obj.IDString,
 		CreatorID:   obj.CreatorID,
@@ -147,19 +153,21 @@ func (m *ObjectModel) Delete(ctx context.Context, id uuid.UUID) error {
 	return m.DB.DeleteObject(ctx, id)
 }
 
-func (m *ObjectModel) List(ctx context.Context, orgID uuid.UUID, search string, limit, offset int32) ([]ListObjectsByOrgIdRow, int64, error) {
-	objects, err := m.DB.ListObjectsByOrgID(ctx, database.ListObjectsByOrgIDParams{
+func (m *ObjectModel) List(ctx context.Context, orgID, creatorID uuid.UUID, search string, limit, offset int32) ([]ListObjectsByOrgIdRow, int64, error) {
+	objects, err := m.DB.ListObjectsByOrgID(ctx, database.ListObjectsByOrgIDParams {
+		ID:      creatorID,
 		OrgID:   orgID,
-		Column2: search,
+		Column3: search,
 		Limit:   limit,
 		Offset:  offset,
 	})
 	if err != nil {
 		return nil, 0, err
 	}
-	count, err := m.DB.CountObjectsByOrgID(ctx, database.CountObjectsByOrgIDParams{
+	count, err := m.DB.CountObjectsByOrgID(ctx, database.CountObjectsByOrgIDParams {
+		ID:      creatorID,
 		OrgID:   orgID,
-		Column2: search,
+		Column3: search,
 	})
 	if err != nil {
 		return nil, 0, err
@@ -425,6 +433,7 @@ func (m *ObjectModel) GetDetails(ctx context.Context, id, orgID uuid.UUID) (*Obj
 	return &ObjectDetail{
 		ID:              data.ID,
 		Name:            data.Name,
+		Photo:           data.Photo,
 		Description:     data.Description,
 		IDString:        data.IDString,
 		CreatorID:       data.CreatorID,
@@ -459,6 +468,7 @@ func (m *ObjectModel) AddObjectTypeValue(ctx context.Context, objectID, typeID u
 		ObjID:   objectID,
 		TypeID:  typeID,
 		Column3: values,
+		OrgID:   orgID,
 	})
 	if err != nil {
 		return nil, err

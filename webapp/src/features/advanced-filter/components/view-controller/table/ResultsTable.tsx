@@ -32,6 +32,7 @@ import { createExportCsvAction } from 'src/features/advanced-filter/actions/expo
 import { createAddTagAction } from 'src/features/advanced-filter/actions/add-tag';
 import { createAddToFunnelAction } from 'src/features/advanced-filter/actions/add-to-funnel';
 import { createMergeObjectsAction } from 'src/features/advanced-filter/actions/merge-objects';
+import { createDeleteObjectAction } from 'src/features/advanced-filter/actions/delete-object';
 import { SmartObjectTypeValue } from 'src/features/smart-object-type';
 import ObjectDetailPanel from 'src/features/object-detail/ObjectDetailPanel';
 
@@ -287,6 +288,10 @@ export const ResultsTable: React.FC<ResultsTableProps> = ({
         onRefresh();
       }),
       createMergeObjectsAction(() => {
+        setSelectedItems([]);
+        onRefresh();
+      }),
+      createDeleteObjectAction(() => {
         setSelectedItems([]);
         onRefresh();
       }),

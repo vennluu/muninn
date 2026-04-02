@@ -116,6 +116,7 @@ interface GlobalData {
   funnelData: FunnelData | null;
   summaryData: SummaryData | null;
   perPage: number;
+  orgId?: string;
 }
 
 // Define the context type with separate refresh functions
@@ -335,42 +336,74 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({
   // Initialize data from storage or fetch fresh data
   useEffect(() => {
     const initializeData = async () => {
-      if (authService.isAuthenticated() && !initialized) {
+      const isAuth = authService.isAuthenticated();
+      const currentOrgId = authService.getDetails()?.orgId;
+
+      // Reset initialized if not authenticated
+      if (!isAuth) {
+        setInitialized(false);
+        setGlobalData(null);
+        return;
+      }
+
+      if (isAuth && (!initialized || globalData?.orgId !== currentOrgId)) {
         setInitialized(true);
         const storedData = loadFromStorage();
 
-        // Initialize with stored data first
-        setGlobalData({
-          memberData: storedData?.memberData?.data ?? null,
-          objectTypeData: storedData?.objectTypeData?.data ?? null,
-          tagData: storedData?.tagData?.data ?? null,
-          funnelData: storedData?.funnelData?.data ?? null,
-          summaryData: null,
-          perPage: storedData?.perPage ?? 5,
-        });
+        // Check if stored data belongs to current organization
+        // We add orgId to GlobalData and storage to ensure isolation
+        const storedOrgId = localStorage.getItem('globalData_orgId');
+        
+        let initialData: GlobalData;
+        if (storedOrgId !== currentOrgId) {
+          // If org changed, ignore cache and start fresh
+          storage.clearAll();
+          initialData = {
+            memberData: null,
+            objectTypeData: null,
+            tagData: null,
+            funnelData: null,
+            summaryData: null,
+            perPage: 5,
+            orgId: currentOrgId,
+          };
+          localStorage.setItem('globalData_orgId', currentOrgId || '');
+        } else {
+          initialData = {
+            memberData: storedData?.memberData?.data ?? null,
+            objectTypeData: storedData?.objectTypeData?.data ?? null,
+            tagData: storedData?.tagData?.data ?? null,
+            funnelData: storedData?.funnelData?.data ?? null,
+            summaryData: null,
+            perPage: storedData?.perPage ?? 5,
+            orgId: currentOrgId,
+          };
+        }
 
-        // Refresh stale data
+        setGlobalData(initialData);
+
+        // Refresh stale or missing data
         if (
-          !storedData?.memberData ||
-          isCacheStale(storedData.memberData.lastUpdated)
+          !initialData.memberData ||
+          isCacheStale(storedData?.memberData?.lastUpdated)
         ) {
           await refreshMembers(true);
         }
         if (
-          !storedData?.objectTypeData ||
-          isCacheStale(storedData.objectTypeData.lastUpdated)
+          !initialData.objectTypeData ||
+          isCacheStale(storedData?.objectTypeData?.lastUpdated)
         ) {
           await refreshObjectTypes(true);
         }
         if (
-          !storedData?.tagData ||
-          isCacheStale(storedData.tagData.lastUpdated)
+          !initialData.tagData ||
+          isCacheStale(storedData?.tagData?.lastUpdated)
         ) {
           await refreshTags();
         }
         if (
-          !storedData?.funnelData ||
-          isCacheStale(storedData.funnelData.lastUpdated)
+          !initialData.funnelData ||
+          isCacheStale(storedData?.funnelData?.lastUpdated)
         ) {
           await refreshFunnels(true);
         }
@@ -383,6 +416,7 @@ export const GlobalProvider: React.FC<{ children: React.ReactNode }> = ({
     initializeData();
   }, [
     initialized,
+    globalData?.orgId,
     isCacheStale,
     loadFromStorage,
     refreshAll,

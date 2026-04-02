@@ -7,3 +7,8 @@ export const personalSummarize = async (): Promise<PersonalSummarize> => {
   const response = await axiosWithAuth().get(`${API_URL}/summarize/personal`);
   return response.data;
 };
+
+export const teamSummarize = async (): Promise<{ summary: string }> => {
+  const response = await axiosWithAuth().get(`${API_URL}/summarize/team`);
+  return response.data;
+};

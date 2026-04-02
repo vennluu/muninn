@@ -74,6 +74,11 @@ type CreatorSession struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type CreatorTagAccess struct {
+	CreatorID uuid.UUID `json:"creator_id"`
+	TagID     uuid.UUID `json:"tag_id"`
+}
+
 type Fact struct {
 	ID          uuid.UUID    `json:"id"`
 	Text        string       `json:"text"`
@@ -131,15 +136,16 @@ type List struct {
 }
 
 type Obj struct {
-	ID          uuid.UUID    `json:"id"`
-	Name        string       `json:"name"`
-	Photo       string       `json:"photo"`
-	Description string       `json:"description"`
-	IDString    string       `json:"id_string"`
-	CreatorID   uuid.UUID    `json:"creator_id"`
-	CreatedAt   time.Time    `json:"created_at"`
-	DeletedAt   sql.NullTime `json:"deleted_at"`
-	Aliases     []string     `json:"aliases"`
+	ID          uuid.UUID     `json:"id"`
+	Name        string        `json:"name"`
+	Photo       string        `json:"photo"`
+	Description string        `json:"description"`
+	IDString    string        `json:"id_string"`
+	CreatorID   uuid.UUID     `json:"creator_id"`
+	CreatedAt   time.Time     `json:"created_at"`
+	DeletedAt   sql.NullTime  `json:"deleted_at"`
+	Aliases     []string      `json:"aliases"`
+	OrgID       uuid.NullUUID `json:"org_id"`
 }
 
 type ObjFact struct {

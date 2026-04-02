@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/crea8r/muninn/server/pkg/database"
 	"github.com/go-chi/chi/v5"
@@ -37,6 +40,27 @@ func (h *PublicHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 	}
 	if stats == nil {
 		stats = []database.GetObjectsByTypeStatsRow{}
+	}
+
+	json.NewEncoder(w).Encode(stats)
+}
+
+func (h *PublicHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
+	orgIDStr := r.URL.Query().Get("orgId")
+	if orgIDStr == "" {
+		http.Error(w, "orgId is required", http.StatusBadRequest)
+		return
+	}
+	orgID, err := uuid.Parse(orgIDStr)
+	if err != nil {
+		http.Error(w, "Invalid orgId", http.StatusBadRequest)
+		return
+	}
+
+	stats, err := h.db.GetPublicStats(r.Context(), orgID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	json.NewEncoder(w).Encode(stats)
@@ -112,6 +136,48 @@ func (h *PublicHandler) GetTopObjects(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(objects)
+}
+
+func (h *PublicHandler) GetGDPStats(w http.ResponseWriter, r *http.Request) {
+	orgIDStr := r.URL.Query().Get("orgId")
+	if orgIDStr == "" {
+		http.Error(w, "orgId is required", http.StatusBadRequest)
+		return
+	}
+	orgID, err := uuid.Parse(orgIDStr)
+	if err != nil {
+		http.Error(w, "Invalid orgId", http.StatusBadRequest)
+		return
+	}
+
+	interval := r.URL.Query().Get("interval")
+	if interval == "" {
+		interval = "month" // default to month for public dashboard
+	}
+
+	typeIDStr := r.URL.Query().Get("typeId")
+	var typeID uuid.NullUUID
+	if typeIDStr != "" {
+		parsedTypeID, err := uuid.Parse(typeIDStr)
+		if err == nil {
+			typeID = uuid.NullUUID{UUID: parsedTypeID, Valid: true}
+		}
+	}
+
+	stats, err := h.db.GetGDPStats(r.Context(), database.GetGDPStatsParams{
+		OrgID:    orgID,
+		Interval: interval,
+		TypeID:   typeID,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if stats == nil {
+		stats = []database.GetGDPStatsRow{}
+	}
+
+	json.NewEncoder(w).Encode(stats)
 }
 
 func (h *PublicHandler) ListOrganizations(w http.ResponseWriter, r *http.Request) {
@@ -255,10 +321,23 @@ func (h *PublicHandler) GetObjectDetail(w http.ResponseWriter, r *http.Request) 
 		}
 	*/
 
+	// Fetch linked objects (both incoming and outgoing)
+	linkedObjects, err := h.db.GetPublicLinkedObjects(r.Context(), database.GetPublicLinkedObjectsParams{
+		OrgID: orgID,
+		ID:    objectID,
+	})
+	if err != nil {
+		fmt.Printf("Warning: Failed to fetch linked objects: %v\n", err)
+	}
+	if linkedObjects == nil {
+		linkedObjects = []database.GetPublicLinkedObjectsRow{}
+	}
+
 	response := map[string]interface{}{
-		"object":      object,
-		"facts":       facts,
-		"type_values": typeValues,
+		"object":         object,
+		"facts":          facts,
+		"type_values":    typeValues,
+		"linked_objects": linkedObjects,
 	}
 
 	json.NewEncoder(w).Encode(response)
@@ -324,4 +403,153 @@ func (h *PublicHandler) GetObjectsByType(w http.ResponseWriter, r *http.Request)
 	}
 
 	json.NewEncoder(w).Encode(objects)
+}
+
+func (h *PublicHandler) ListFunnels(w http.ResponseWriter, r *http.Request) {
+	orgIDStr := r.URL.Query().Get("orgId")
+	if orgIDStr == "" {
+		http.Error(w, "orgId is required", http.StatusBadRequest)
+		return
+	}
+	orgID, err := uuid.Parse(orgIDStr)
+	if err != nil {
+		http.Error(w, "Invalid orgId", http.StatusBadRequest)
+		return
+	}
+
+	funnels, err := h.db.ListFunnels(r.Context(), database.ListFunnelsParams{
+		OrgID:   orgID,
+		Column2: "",
+		Limit:   100, // get a reasonable number of funnels
+		Offset:  0,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Create a list of funnels with steps
+	funnelWithSteps := make([]ListFunnelsRowWithStep, len(funnels))
+	for i, funnel := range funnels {
+		steps, err := h.db.ListStepsByFunnel(r.Context(), funnel.ID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		funnelWithSteps[i].ID = funnel.ID
+		funnelWithSteps[i].Name = funnel.Name
+		funnelWithSteps[i].Description = funnel.Description
+		funnelWithSteps[i].CreatorID = funnel.CreatorID
+		funnelWithSteps[i].CreatedAt = funnel.CreatedAt
+		funnelWithSteps[i].OrgID = funnel.OrgID
+		funnelWithSteps[i].ObjectCount = funnel.ObjectCount
+		funnelWithSteps[i].Steps = steps
+	}
+
+	json.NewEncoder(w).Encode(funnelWithSteps)
+}
+
+func (h *PublicHandler) GetFunnelView(w http.ResponseWriter, r *http.Request) {
+	funnelIDStr := chi.URLParam(r, "id")
+	funnelID, err := uuid.Parse(funnelIDStr)
+	if err != nil {
+		http.Error(w, "Invalid funnel ID", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+
+	// Fetch funnel details
+	funnel, err := h.db.GetFunnel(ctx, funnelID)
+	if err != nil {
+		http.Error(w, "Failed to fetch funnel", http.StatusInternalServerError)
+		return
+	}
+
+	// Fetch steps for the funnel
+	steps, err := h.db.ListStepsByFunnel(ctx, funnelID)
+	if err != nil {
+		http.Error(w, "Failed to fetch funnel steps", http.StatusInternalServerError)
+		return
+	}
+
+	stepsWithObjects := make([]StepWithObjects, len(steps))
+
+	for i, step := range steps {
+		pageStr := r.URL.Query().Get("page_" + step.ID.String())
+		page, _ := strconv.Atoi(pageStr)
+		if page == 0 {
+			page = 1
+		}
+
+		searchQuery := r.URL.Query().Get("search_" + step.ID.String())
+
+		objects, totalCount, err := h.getObjectsForStep(ctx, step.ID, page, searchQuery)
+		if err != nil {
+			http.Error(w, "Failed to fetch objects for step", http.StatusInternalServerError)
+			return
+		}
+
+		stepsWithObjects[i] = StepWithObjects{
+			Step:        step,
+			Objects:     objects,
+			TotalCount:  int32(totalCount),
+			CurrentPage: int32(page),
+		}
+	}
+
+	response := FunnelViewResponse{
+		Funnel: funnel,
+		Steps:  stepsWithObjects,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (h *PublicHandler) getObjectsForStep(ctx context.Context, stepID uuid.UUID, page int, searchQuery string) ([]ObjectSummary, int64, error) {
+	limit := 1000 // Objects per page - Increased to show full data without pagination
+	offset := (page - 1) * limit
+
+	// Create a new query to fetch objects for a specific step with pagination and search
+	objects, err := h.db.GetObjectsForStep(ctx, database.GetObjectsForStepParams{
+		StepID:  stepID,
+		Column2: searchQuery,
+		Limit:   int32(limit),
+		Offset:  int32(offset),
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Count total objects for the step (for pagination)
+	totalCount, err := h.db.CountObjectsForStep(ctx, database.CountObjectsForStepParams{
+		StepID:  stepID,
+		Column2: searchQuery,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+
+	objectSummaries := make([]ObjectSummary, len(objects))
+	for i, obj := range objects {
+		var tags json.RawMessage
+		tagsBytes, ok := obj.Tags.([]byte)
+		if !ok {
+			fmt.Println("Cannot convert objects to bytes: ")
+		}
+		err = json.Unmarshal(tagsBytes, &tags)
+		if err != nil {
+			fmt.Println("Cannot marshal objects: ", err)
+		}
+		objectSummaries[i] = ObjectSummary{
+			ID:          obj.ID,
+			Name:        obj.Name,
+			Description: obj.Description,
+			Tags:        tags,
+			Photo:       obj.Photo,
+		}
+	}
+
+	return objectSummaries, totalCount, nil
 }

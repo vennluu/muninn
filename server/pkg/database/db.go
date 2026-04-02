@@ -60,6 +60,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.countImportTasksStmt, err = db.PrepareContext(ctx, countImportTasks); err != nil {
 		return nil, fmt.Errorf("error preparing query CountImportTasks: %w", err)
 	}
+	if q.countImportTasksByOrgStmt, err = db.PrepareContext(ctx, countImportTasksByOrg); err != nil {
+		return nil, fmt.Errorf("error preparing query CountImportTasksByOrg: %w", err)
+	}
 	if q.countListsByOrgIDStmt, err = db.PrepareContext(ctx, countListsByOrgID); err != nil {
 		return nil, fmt.Errorf("error preparing query CountListsByOrgID: %w", err)
 	}
@@ -192,6 +195,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getAccessibleObjectTypesForMemberStmt, err = db.PrepareContext(ctx, getAccessibleObjectTypesForMember); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAccessibleObjectTypesForMember: %w", err)
 	}
+	if q.getAccessibleTagIDsForMemberStmt, err = db.PrepareContext(ctx, getAccessibleTagIDsForMember); err != nil {
+		return nil, fmt.Errorf("error preparing query GetAccessibleTagIDsForMember: %w", err)
+	}
 	if q.getAutomatedActionStmt, err = db.PrepareContext(ctx, getAutomatedAction); err != nil {
 		return nil, fmt.Errorf("error preparing query GetAutomatedAction: %w", err)
 	}
@@ -225,6 +231,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getImportTaskHistoryStmt, err = db.PrepareContext(ctx, getImportTaskHistory); err != nil {
 		return nil, fmt.Errorf("error preparing query GetImportTaskHistory: %w", err)
 	}
+	if q.getImportTasksByOrgStmt, err = db.PrepareContext(ctx, getImportTasksByOrg); err != nil {
+		return nil, fmt.Errorf("error preparing query GetImportTasksByOrg: %w", err)
+	}
 	if q.getLatestExecutionStmt, err = db.PrepareContext(ctx, getLatestExecution); err != nil {
 		return nil, fmt.Errorf("error preparing query GetLatestExecution: %w", err)
 	}
@@ -234,6 +243,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.getObjStepStmt, err = db.PrepareContext(ctx, getObjStep); err != nil {
 		return nil, fmt.Errorf("error preparing query GetObjStep: %w", err)
 	}
+	if q.getObjectByIDStmt, err = db.PrepareContext(ctx, getObjectByID); err != nil {
+		return nil, fmt.Errorf("error preparing query GetObjectByID: %w", err)
+	}
 	if q.getObjectByIDStringStmt, err = db.PrepareContext(ctx, getObjectByIDString); err != nil {
 		return nil, fmt.Errorf("error preparing query GetObjectByIDString: %w", err)
 	}
@@ -242,6 +254,12 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.getObjectTypeByIDStmt, err = db.PrepareContext(ctx, getObjectTypeByID); err != nil {
 		return nil, fmt.Errorf("error preparing query GetObjectTypeByID: %w", err)
+	}
+	if q.getObjectTypeIDByTypeValueIDStmt, err = db.PrepareContext(ctx, getObjectTypeIDByTypeValueID); err != nil {
+		return nil, fmt.Errorf("error preparing query GetObjectTypeIDByTypeValueID: %w", err)
+	}
+	if q.getObjectTypeIDsByObjectIDStmt, err = db.PrepareContext(ctx, getObjectTypeIDsByObjectID); err != nil {
+		return nil, fmt.Errorf("error preparing query GetObjectTypeIDsByObjectID: %w", err)
 	}
 	if q.getObjectTypeValueStmt, err = db.PrepareContext(ctx, getObjectTypeValue); err != nil {
 		return nil, fmt.Errorf("error preparing query GetObjectTypeValue: %w", err)
@@ -260,6 +278,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.getPendingActionsStmt, err = db.PrepareContext(ctx, getPendingActions); err != nil {
 		return nil, fmt.Errorf("error preparing query GetPendingActions: %w", err)
+	}
+	if q.getPublicLinkedObjectsStmt, err = db.PrepareContext(ctx, getPublicLinkedObjects); err != nil {
+		return nil, fmt.Errorf("error preparing query GetPublicLinkedObjects: %w", err)
 	}
 	if q.getPublicObjectStmt, err = db.PrepareContext(ctx, getPublicObject); err != nil {
 		return nil, fmt.Errorf("error preparing query GetPublicObject: %w", err)
@@ -303,17 +324,26 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.grantAccessToObjectTypeStmt, err = db.PrepareContext(ctx, grantAccessToObjectType); err != nil {
 		return nil, fmt.Errorf("error preparing query GrantAccessToObjectType: %w", err)
 	}
+	if q.grantAccessToTagStmt, err = db.PrepareContext(ctx, grantAccessToTag); err != nil {
+		return nil, fmt.Errorf("error preparing query GrantAccessToTag: %w", err)
+	}
 	if q.hardDeleteObjStepStmt, err = db.PrepareContext(ctx, hardDeleteObjStep); err != nil {
 		return nil, fmt.Errorf("error preparing query HardDeleteObjStep: %w", err)
 	}
-	if q.hasAccessToObjectTypeStmt, err = db.PrepareContext(ctx, hasAccessToObjectType); err != nil {
-		return nil, fmt.Errorf("error preparing query HasAccessToObjectType: %w", err)
+	if q.hasEditAccessToObjectTypeStmt, err = db.PrepareContext(ctx, hasEditAccessToObjectType); err != nil {
+		return nil, fmt.Errorf("error preparing query HasEditAccessToObjectType: %w", err)
+	}
+	if q.hasViewAccessToObjectTypeStmt, err = db.PrepareContext(ctx, hasViewAccessToObjectType); err != nil {
+		return nil, fmt.Errorf("error preparing query HasViewAccessToObjectType: %w", err)
 	}
 	if q.healthCheckStmt, err = db.PrepareContext(ctx, healthCheck); err != nil {
 		return nil, fmt.Errorf("error preparing query HealthCheck: %w", err)
 	}
 	if q.listAccessibleObjectTypesStmt, err = db.PrepareContext(ctx, listAccessibleObjectTypes); err != nil {
 		return nil, fmt.Errorf("error preparing query ListAccessibleObjectTypes: %w", err)
+	}
+	if q.listAccessibleTagsStmt, err = db.PrepareContext(ctx, listAccessibleTags); err != nil {
+		return nil, fmt.Errorf("error preparing query ListAccessibleTags: %w", err)
 	}
 	if q.listActionExecutionsStmt, err = db.PrepareContext(ctx, listActionExecutions); err != nil {
 		return nil, fmt.Errorf("error preparing query ListActionExecutions: %w", err)
@@ -357,6 +387,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	if q.listOrganizationsStmt, err = db.PrepareContext(ctx, listOrganizations); err != nil {
 		return nil, fmt.Errorf("error preparing query ListOrganizations: %w", err)
 	}
+	if q.listRecentObjectStepChangesByOrgIDStmt, err = db.PrepareContext(ctx, listRecentObjectStepChangesByOrgID); err != nil {
+		return nil, fmt.Errorf("error preparing query ListRecentObjectStepChangesByOrgID: %w", err)
+	}
 	if q.listStepsByFunnelStmt, err = db.PrepareContext(ctx, listStepsByFunnel); err != nil {
 		return nil, fmt.Errorf("error preparing query ListStepsByFunnel: %w", err)
 	}
@@ -392,6 +425,9 @@ func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
 	}
 	if q.revokeAccessToObjectTypeStmt, err = db.PrepareContext(ctx, revokeAccessToObjectType); err != nil {
 		return nil, fmt.Errorf("error preparing query RevokeAccessToObjectType: %w", err)
+	}
+	if q.revokeAccessToTagStmt, err = db.PrepareContext(ctx, revokeAccessToTag); err != nil {
+		return nil, fmt.Errorf("error preparing query RevokeAccessToTag: %w", err)
 	}
 	if q.softDeleteObjStepStmt, err = db.PrepareContext(ctx, softDeleteObjStep); err != nil {
 		return nil, fmt.Errorf("error preparing query SoftDeleteObjStep: %w", err)
@@ -534,6 +570,11 @@ func (q *Queries) Close() error {
 	if q.countImportTasksStmt != nil {
 		if cerr := q.countImportTasksStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing countImportTasksStmt: %w", cerr)
+		}
+	}
+	if q.countImportTasksByOrgStmt != nil {
+		if cerr := q.countImportTasksByOrgStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing countImportTasksByOrgStmt: %w", cerr)
 		}
 	}
 	if q.countListsByOrgIDStmt != nil {
@@ -756,6 +797,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getAccessibleObjectTypesForMemberStmt: %w", cerr)
 		}
 	}
+	if q.getAccessibleTagIDsForMemberStmt != nil {
+		if cerr := q.getAccessibleTagIDsForMemberStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getAccessibleTagIDsForMemberStmt: %w", cerr)
+		}
+	}
 	if q.getAutomatedActionStmt != nil {
 		if cerr := q.getAutomatedActionStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getAutomatedActionStmt: %w", cerr)
@@ -811,6 +857,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getImportTaskHistoryStmt: %w", cerr)
 		}
 	}
+	if q.getImportTasksByOrgStmt != nil {
+		if cerr := q.getImportTasksByOrgStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getImportTasksByOrgStmt: %w", cerr)
+		}
+	}
 	if q.getLatestExecutionStmt != nil {
 		if cerr := q.getLatestExecutionStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getLatestExecutionStmt: %w", cerr)
@@ -826,6 +877,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing getObjStepStmt: %w", cerr)
 		}
 	}
+	if q.getObjectByIDStmt != nil {
+		if cerr := q.getObjectByIDStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getObjectByIDStmt: %w", cerr)
+		}
+	}
 	if q.getObjectByIDStringStmt != nil {
 		if cerr := q.getObjectByIDStringStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getObjectByIDStringStmt: %w", cerr)
@@ -839,6 +895,16 @@ func (q *Queries) Close() error {
 	if q.getObjectTypeByIDStmt != nil {
 		if cerr := q.getObjectTypeByIDStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getObjectTypeByIDStmt: %w", cerr)
+		}
+	}
+	if q.getObjectTypeIDByTypeValueIDStmt != nil {
+		if cerr := q.getObjectTypeIDByTypeValueIDStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getObjectTypeIDByTypeValueIDStmt: %w", cerr)
+		}
+	}
+	if q.getObjectTypeIDsByObjectIDStmt != nil {
+		if cerr := q.getObjectTypeIDsByObjectIDStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getObjectTypeIDsByObjectIDStmt: %w", cerr)
 		}
 	}
 	if q.getObjectTypeValueStmt != nil {
@@ -869,6 +935,11 @@ func (q *Queries) Close() error {
 	if q.getPendingActionsStmt != nil {
 		if cerr := q.getPendingActionsStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing getPendingActionsStmt: %w", cerr)
+		}
+	}
+	if q.getPublicLinkedObjectsStmt != nil {
+		if cerr := q.getPublicLinkedObjectsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing getPublicLinkedObjectsStmt: %w", cerr)
 		}
 	}
 	if q.getPublicObjectStmt != nil {
@@ -941,14 +1012,24 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing grantAccessToObjectTypeStmt: %w", cerr)
 		}
 	}
+	if q.grantAccessToTagStmt != nil {
+		if cerr := q.grantAccessToTagStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing grantAccessToTagStmt: %w", cerr)
+		}
+	}
 	if q.hardDeleteObjStepStmt != nil {
 		if cerr := q.hardDeleteObjStepStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing hardDeleteObjStepStmt: %w", cerr)
 		}
 	}
-	if q.hasAccessToObjectTypeStmt != nil {
-		if cerr := q.hasAccessToObjectTypeStmt.Close(); cerr != nil {
-			err = fmt.Errorf("error closing hasAccessToObjectTypeStmt: %w", cerr)
+	if q.hasEditAccessToObjectTypeStmt != nil {
+		if cerr := q.hasEditAccessToObjectTypeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing hasEditAccessToObjectTypeStmt: %w", cerr)
+		}
+	}
+	if q.hasViewAccessToObjectTypeStmt != nil {
+		if cerr := q.hasViewAccessToObjectTypeStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing hasViewAccessToObjectTypeStmt: %w", cerr)
 		}
 	}
 	if q.healthCheckStmt != nil {
@@ -959,6 +1040,11 @@ func (q *Queries) Close() error {
 	if q.listAccessibleObjectTypesStmt != nil {
 		if cerr := q.listAccessibleObjectTypesStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listAccessibleObjectTypesStmt: %w", cerr)
+		}
+	}
+	if q.listAccessibleTagsStmt != nil {
+		if cerr := q.listAccessibleTagsStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listAccessibleTagsStmt: %w", cerr)
 		}
 	}
 	if q.listActionExecutionsStmt != nil {
@@ -1031,6 +1117,11 @@ func (q *Queries) Close() error {
 			err = fmt.Errorf("error closing listOrganizationsStmt: %w", cerr)
 		}
 	}
+	if q.listRecentObjectStepChangesByOrgIDStmt != nil {
+		if cerr := q.listRecentObjectStepChangesByOrgIDStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing listRecentObjectStepChangesByOrgIDStmt: %w", cerr)
+		}
+	}
 	if q.listStepsByFunnelStmt != nil {
 		if cerr := q.listStepsByFunnelStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing listStepsByFunnelStmt: %w", cerr)
@@ -1089,6 +1180,11 @@ func (q *Queries) Close() error {
 	if q.revokeAccessToObjectTypeStmt != nil {
 		if cerr := q.revokeAccessToObjectTypeStmt.Close(); cerr != nil {
 			err = fmt.Errorf("error closing revokeAccessToObjectTypeStmt: %w", cerr)
+		}
+	}
+	if q.revokeAccessToTagStmt != nil {
+		if cerr := q.revokeAccessToTagStmt.Close(); cerr != nil {
+			err = fmt.Errorf("error closing revokeAccessToTagStmt: %w", cerr)
 		}
 	}
 	if q.softDeleteObjStepStmt != nil {
@@ -1272,6 +1368,7 @@ type Queries struct {
 	countFactsByOrgIDStmt                    *sql.Stmt
 	countFunnelsStmt                         *sql.Stmt
 	countImportTasksStmt                     *sql.Stmt
+	countImportTasksByOrgStmt                *sql.Stmt
 	countListsByOrgIDStmt                    *sql.Stmt
 	countObjectTypesStmt                     *sql.Stmt
 	countObjectsAdvancedStmt                 *sql.Stmt
@@ -1316,6 +1413,7 @@ type Queries struct {
 	findObjectByAliasOrIDStringStmt          *sql.Stmt
 	findTagByNormalizedNameStmt              *sql.Stmt
 	getAccessibleObjectTypesForMemberStmt    *sql.Stmt
+	getAccessibleTagIDsForMemberStmt         *sql.Stmt
 	getAutomatedActionStmt                   *sql.Stmt
 	getCreatorByIDStmt                       *sql.Stmt
 	getCreatorByUsernameStmt                 *sql.Stmt
@@ -1327,18 +1425,23 @@ type Queries struct {
 	getGDPStatsStmt                          *sql.Stmt
 	getImportTaskStmt                        *sql.Stmt
 	getImportTaskHistoryStmt                 *sql.Stmt
+	getImportTasksByOrgStmt                  *sql.Stmt
 	getLatestExecutionStmt                   *sql.Stmt
 	getListByIDStmt                          *sql.Stmt
 	getObjStepStmt                           *sql.Stmt
+	getObjectByIDStmt                        *sql.Stmt
 	getObjectByIDStringStmt                  *sql.Stmt
 	getObjectDetailsStmt                     *sql.Stmt
 	getObjectTypeByIDStmt                    *sql.Stmt
+	getObjectTypeIDByTypeValueIDStmt         *sql.Stmt
+	getObjectTypeIDsByObjectIDStmt           *sql.Stmt
 	getObjectTypeValueStmt                   *sql.Stmt
 	getObjectsByTypeStatsStmt                *sql.Stmt
 	getObjectsForStepStmt                    *sql.Stmt
 	getOngoingImportTaskStmt                 *sql.Stmt
 	getOrgDetailsStmt                        *sql.Stmt
 	getPendingActionsStmt                    *sql.Stmt
+	getPublicLinkedObjectsStmt               *sql.Stmt
 	getPublicObjectStmt                      *sql.Stmt
 	getPublicObjectFactsStmt                 *sql.Stmt
 	getPublicObjectTypeValuesStmt            *sql.Stmt
@@ -1353,10 +1456,13 @@ type Queries struct {
 	getTagsByIDsStmt                         *sql.Stmt
 	getTaskByIDStmt                          *sql.Stmt
 	grantAccessToObjectTypeStmt              *sql.Stmt
+	grantAccessToTagStmt                     *sql.Stmt
 	hardDeleteObjStepStmt                    *sql.Stmt
-	hasAccessToObjectTypeStmt                *sql.Stmt
+	hasEditAccessToObjectTypeStmt            *sql.Stmt
+	hasViewAccessToObjectTypeStmt            *sql.Stmt
 	healthCheckStmt                          *sql.Stmt
 	listAccessibleObjectTypesStmt            *sql.Stmt
+	listAccessibleTagsStmt                   *sql.Stmt
 	listActionExecutionsStmt                 *sql.Stmt
 	listAutomatedActionsStmt                 *sql.Stmt
 	listCreatorListsByCreatorIDStmt          *sql.Stmt
@@ -1371,6 +1477,7 @@ type Queries struct {
 	listObjectsWithNormalizedDataStmt        *sql.Stmt
 	listOrgMembersStmt                       *sql.Stmt
 	listOrganizationsStmt                    *sql.Stmt
+	listRecentObjectStepChangesByOrgIDStmt   *sql.Stmt
 	listStepsByFunnelStmt                    *sql.Stmt
 	listTagsStmt                             *sql.Stmt
 	listTasksByObjectIDStmt                  *sql.Stmt
@@ -1383,6 +1490,7 @@ type Queries struct {
 	removeObjectsFromTaskStmt                *sql.Stmt
 	removeTagFromObjectStmt                  *sql.Stmt
 	revokeAccessToObjectTypeStmt             *sql.Stmt
+	revokeAccessToTagStmt                    *sql.Stmt
 	softDeleteObjStepStmt                    *sql.Stmt
 	syncObjectAliasesStmt                    *sql.Stmt
 	updateActionExecutionStmt                *sql.Stmt
@@ -1427,6 +1535,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		countFactsByOrgIDStmt:                    q.countFactsByOrgIDStmt,
 		countFunnelsStmt:                         q.countFunnelsStmt,
 		countImportTasksStmt:                     q.countImportTasksStmt,
+		countImportTasksByOrgStmt:                q.countImportTasksByOrgStmt,
 		countListsByOrgIDStmt:                    q.countListsByOrgIDStmt,
 		countObjectTypesStmt:                     q.countObjectTypesStmt,
 		countObjectsAdvancedStmt:                 q.countObjectsAdvancedStmt,
@@ -1471,6 +1580,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		findObjectByAliasOrIDStringStmt:          q.findObjectByAliasOrIDStringStmt,
 		findTagByNormalizedNameStmt:              q.findTagByNormalizedNameStmt,
 		getAccessibleObjectTypesForMemberStmt:    q.getAccessibleObjectTypesForMemberStmt,
+		getAccessibleTagIDsForMemberStmt:         q.getAccessibleTagIDsForMemberStmt,
 		getAutomatedActionStmt:                   q.getAutomatedActionStmt,
 		getCreatorByIDStmt:                       q.getCreatorByIDStmt,
 		getCreatorByUsernameStmt:                 q.getCreatorByUsernameStmt,
@@ -1482,18 +1592,23 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getGDPStatsStmt:                          q.getGDPStatsStmt,
 		getImportTaskStmt:                        q.getImportTaskStmt,
 		getImportTaskHistoryStmt:                 q.getImportTaskHistoryStmt,
+		getImportTasksByOrgStmt:                  q.getImportTasksByOrgStmt,
 		getLatestExecutionStmt:                   q.getLatestExecutionStmt,
 		getListByIDStmt:                          q.getListByIDStmt,
 		getObjStepStmt:                           q.getObjStepStmt,
+		getObjectByIDStmt:                        q.getObjectByIDStmt,
 		getObjectByIDStringStmt:                  q.getObjectByIDStringStmt,
 		getObjectDetailsStmt:                     q.getObjectDetailsStmt,
 		getObjectTypeByIDStmt:                    q.getObjectTypeByIDStmt,
+		getObjectTypeIDByTypeValueIDStmt:         q.getObjectTypeIDByTypeValueIDStmt,
+		getObjectTypeIDsByObjectIDStmt:           q.getObjectTypeIDsByObjectIDStmt,
 		getObjectTypeValueStmt:                   q.getObjectTypeValueStmt,
 		getObjectsByTypeStatsStmt:                q.getObjectsByTypeStatsStmt,
 		getObjectsForStepStmt:                    q.getObjectsForStepStmt,
 		getOngoingImportTaskStmt:                 q.getOngoingImportTaskStmt,
 		getOrgDetailsStmt:                        q.getOrgDetailsStmt,
 		getPendingActionsStmt:                    q.getPendingActionsStmt,
+		getPublicLinkedObjectsStmt:               q.getPublicLinkedObjectsStmt,
 		getPublicObjectStmt:                      q.getPublicObjectStmt,
 		getPublicObjectFactsStmt:                 q.getPublicObjectFactsStmt,
 		getPublicObjectTypeValuesStmt:            q.getPublicObjectTypeValuesStmt,
@@ -1508,10 +1623,13 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		getTagsByIDsStmt:                         q.getTagsByIDsStmt,
 		getTaskByIDStmt:                          q.getTaskByIDStmt,
 		grantAccessToObjectTypeStmt:              q.grantAccessToObjectTypeStmt,
+		grantAccessToTagStmt:                     q.grantAccessToTagStmt,
 		hardDeleteObjStepStmt:                    q.hardDeleteObjStepStmt,
-		hasAccessToObjectTypeStmt:                q.hasAccessToObjectTypeStmt,
+		hasEditAccessToObjectTypeStmt:            q.hasEditAccessToObjectTypeStmt,
+		hasViewAccessToObjectTypeStmt:            q.hasViewAccessToObjectTypeStmt,
 		healthCheckStmt:                          q.healthCheckStmt,
 		listAccessibleObjectTypesStmt:            q.listAccessibleObjectTypesStmt,
+		listAccessibleTagsStmt:                   q.listAccessibleTagsStmt,
 		listActionExecutionsStmt:                 q.listActionExecutionsStmt,
 		listAutomatedActionsStmt:                 q.listAutomatedActionsStmt,
 		listCreatorListsByCreatorIDStmt:          q.listCreatorListsByCreatorIDStmt,
@@ -1526,6 +1644,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		listObjectsWithNormalizedDataStmt:        q.listObjectsWithNormalizedDataStmt,
 		listOrgMembersStmt:                       q.listOrgMembersStmt,
 		listOrganizationsStmt:                    q.listOrganizationsStmt,
+		listRecentObjectStepChangesByOrgIDStmt:   q.listRecentObjectStepChangesByOrgIDStmt,
 		listStepsByFunnelStmt:                    q.listStepsByFunnelStmt,
 		listTagsStmt:                             q.listTagsStmt,
 		listTasksByObjectIDStmt:                  q.listTasksByObjectIDStmt,
@@ -1538,6 +1657,7 @@ func (q *Queries) WithTx(tx *sql.Tx) *Queries {
 		removeObjectsFromTaskStmt:                q.removeObjectsFromTaskStmt,
 		removeTagFromObjectStmt:                  q.removeTagFromObjectStmt,
 		revokeAccessToObjectTypeStmt:             q.revokeAccessToObjectTypeStmt,
+		revokeAccessToTagStmt:                    q.revokeAccessToTagStmt,
 		softDeleteObjStepStmt:                    q.softDeleteObjStepStmt,
 		syncObjectAliasesStmt:                    q.syncObjectAliasesStmt,
 		updateActionExecutionStmt:                q.updateActionExecutionStmt,

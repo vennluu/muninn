@@ -6,17 +6,12 @@ import {
   Text,
   Divider,
   useToast,
+  Button,
 } from '@chakra-ui/react';
 import { getFeed } from 'src/api/feed';
-// import { FeedItem } from 'src/types/Feed';
+import { teamSummarize } from 'src/api/summarize';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-// import ObjectTypeFeedItem from './items/ObjectTypeFeedItem';
-// import TaskFeedItem from './items/TaskFeedItem';
-// import FunnelFeedItem from './items/FunnelFeedItem';
-// import ObjectFeedItem from './items/ObjectFeedItem';
-// import NewObjectTypeValue from './items/NewObjectTypeValue';
-// import ObjectStepFeedItem from './items/ObjectStepFeedItem';
 import LoadingPanel from 'src/components/LoadingPanel';
 import FactItem from 'src/components/FactItem';
 import { Fact } from 'src/types';
@@ -54,7 +49,27 @@ import { Fact } from 'src/types';
 const FeedPage: React.FC = () => {
   const [feedItems, setFeedItems] = useState<Fact[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
   const toast = useToast();
+
+  const handleSummarize = async () => {
+    try {
+      setIsSummarizing(true);
+      const res = await teamSummarize();
+      setSummary(res.summary);
+    } catch (error) {
+      toast({
+        title: 'Error generating summary',
+        description: 'Failed to generate team summary',
+        status: 'error',
+        duration: 2000,
+      });
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
   useEffect(() => {
     const loadFeed = async () => {
       try {
@@ -80,9 +95,26 @@ const FeedPage: React.FC = () => {
 
   return (
     <Box>
-      <Heading as='h1' size='xl' mb={6} color='var(--color-primary)'>
-        Feed
-      </Heading>
+      <Box display='flex' justifyContent='space-between' alignItems='center' mb={6}>
+        <Heading as='h1' size='xl' color='var(--color-primary)'>
+          Feed
+        </Heading>
+        <Button
+          colorScheme='teal'
+          onClick={handleSummarize}
+          isLoading={isSummarizing}
+        >
+          AI Summarize
+        </Button>
+      </Box>
+
+      {summary && (
+        <Box p={4} mb={6} bg='teal.50' borderRadius='md' borderWidth={1} borderColor='teal.200'>
+          <Heading as='h3' size='sm' color='teal.700' mb={2}>✨ Team Update Summary</Heading>
+          <Text whiteSpace='pre-wrap'>{summary}</Text>
+        </Box>
+      )}
+
       {isLoading ? (
         <LoadingPanel />
       ) : (

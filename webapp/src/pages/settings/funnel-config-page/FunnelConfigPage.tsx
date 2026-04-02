@@ -65,9 +65,20 @@ const FunnelConfigPage: React.FC = () => {
   useEffect(() => {
     const loadFunnel = async () => {
       setIsLoading(true);
-      if (id) {
-        const funnelData = await getFunnel(id);
-        setFunnel(funnelData);
+      try {
+        if (id) {
+          const funnelData = await getFunnel(id);
+          setFunnel(funnelData);
+        }
+      } catch (error) {
+        toast({
+          title: 'Error loading funnel',
+          description: 'Funnel not found or an error occurred.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+        setFunnel(null);
       }
       setIsLoading(false);
     };
@@ -150,29 +161,26 @@ const FunnelConfigPage: React.FC = () => {
 
   const handleDeleteFunnel = async () => {
     if (!funnel) return;
-    if (window.confirm('Are you sure you want to delete this funnel?')) {
-      try {
-        setIsLoading(true);
-        await deleteFunnel(funnel.id);
-        toast({
-          title: 'Funnel deleted',
-          status: 'success',
-          duration: 3000,
-          isClosable: true,
-        });
-        history.replace('/settings/funnels');
-      } catch (error) {
-        toast({
-          title: 'Error deleting funnel',
-          description: 'Might being used in some objects.',
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-        });
-      } finally {
-        refreshFunnels();
-        setIsLoading(false);
-      }
+    try {
+      setIsLoading(true);
+      await deleteFunnel(funnel.id);
+      toast({
+        title: 'Funnel deleted',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      history.replace('/settings/funnels');
+    } catch (error) {
+      toast({
+        title: 'Error deleting funnel',
+        description: 'Might being used in some objects.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 

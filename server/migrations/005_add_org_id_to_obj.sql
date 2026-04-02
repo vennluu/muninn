@@ -1,0 +1,1 @@
+ALTER TABLE obj ADD COLUMN org_id UUID REFERENCES org(id);

@@ -36,6 +36,7 @@ import {
   Text,
   Switch,
   ModalFooter,
+  Spinner,
 } from '@chakra-ui/react';
 import BreadcrumbComponent from 'src/components/Breadcrumb';
 import { addNewOrgMember, listOrgMembers, updateUserPassword } from 'src/api';
@@ -44,9 +45,16 @@ import {
   getAccessibleObjectTypesForMember,
   grantAccessToObjectType,
   revokeAccessToObjectType,
+  updateObjectType,
 } from 'src/api/objType';
+import {
+  listTags,
+  getAccessibleTagsForMember,
+  grantAccessToTag,
+  revokeAccessToTag,
+} from 'src/api/tag';
 import authService from 'src/services/authService';
-import { OrgMember, ObjectType } from 'src/types';
+import { OrgMember, ObjectType, Tag } from 'src/types';
 import { ChevronDownIcon, CopyIcon } from '@chakra-ui/icons';
 import { normalise, generateRandomPassword } from 'src/utils';
 import ActivityHeatmap from 'src/components/ActivityHeatmap';
@@ -290,6 +298,7 @@ const OrganisationPage: React.FC = () => {
         submit={handleUpdateUserPassword}
       />
       <ManageAccessDialog
+        key={currentEditingUserId}
         isOpen={isOpenManageAccessDialog}
         onClose={onCloseManageAccessDialog}
         memberId={currentEditingUserId}
@@ -567,7 +576,12 @@ const ManageAccessDialog = ({
 }: ManageAccessDialogProps) => {
   const [objectTypes, setObjectTypes] = useState<ObjectType[]>([]);
   const [accessibleIds, setAccessibleIds] = useState<Set<string>>(new Set());
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [accessibleTagIds, setAccessibleTagIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
+  const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
+  const [togglingTagIds, setTogglingTagIds] = useState<Set<string>>(new Set());
+  const [updatingPublicIds, setUpdatingPublicIds] = useState<Set<string>>(new Set());
   const toast = useToast();
 
   useEffect(() => {
@@ -579,15 +593,37 @@ const ManageAccessDialog = ({
   const loadData = async () => {
     setLoading(true);
     try {
-      const [allTypes, accessibleTypes] = await Promise.all([
+      const [allTypesRes, accessibleTypesRes, allTagsRes, accessibleTagsRes] = await Promise.allSettled([
         listObjectTypes({ page: 1, pageSize: 100 }),
         getAccessibleObjectTypesForMember(memberId),
+        listTags({ page: 1, pageSize: 100 }),
+        getAccessibleTagsForMember(memberId),
       ]);
-      setObjectTypes(allTypes.objectTypes);
-      setAccessibleIds(new Set(accessibleTypes.map((t) => t.id)));
-    } catch (error) {
+
+      const allTypes = allTypesRes.status === 'fulfilled' ? allTypesRes.value : undefined;
+      const accessibleTypes =
+        accessibleTypesRes.status === 'fulfilled' ? accessibleTypesRes.value : undefined;
+      const allTags = allTagsRes.status === 'fulfilled' ? allTagsRes.value : undefined;
+      const accessibleTags =
+        accessibleTagsRes.status === 'fulfilled' ? accessibleTagsRes.value : undefined;
+
+      setObjectTypes(allTypes?.objectTypes || []);
+      setAccessibleIds(new Set((accessibleTypes || []).map((t) => t.id)));
+      setTags(allTags?.tags || []);
+      setAccessibleTagIds(new Set((accessibleTags || []).map((t) => t.id)));
+
+      const rejected = [allTypesRes, accessibleTypesRes, allTagsRes, accessibleTagsRes].filter(
+        (r) => r.status === 'rejected',
+      ) as PromiseRejectedResult[];
+      if (rejected.length > 0) {
+        const first = rejected[0].reason;
+        throw first;
+      }
+    } catch (error: any) {
+      console.error('Error loading manage access data:', error);
       toast({
         title: 'Error loading data',
+        description: error.response?.data?.message || error.message || 'Please try again later.',
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -597,67 +633,294 @@ const ManageAccessDialog = ({
     }
   };
 
-  const handleToggle = async (typeId: string, isGranted: boolean) => {
+  const handleUpdateTypePublicStatus = async (type: ObjectType, isPublic: boolean) => {
+    if (updatingPublicIds.has(type.id)) return;
+    setUpdatingPublicIds((prev) => new Set(prev).add(type.id));
+
     try {
-      if (isGranted) {
+      const updated = await updateObjectType(type.id, {
+        name: type.name,
+        description: type.description || '',
+        fields: type.fields,
+        icon: type.icon,
+        is_public: isPublic,
+        gdp_measure_field: type.gdp_measure_field,
+      });
+
+      setObjectTypes((prev) => 
+        prev.map((t) => t.id === type.id ? { ...t, is_public: isPublic } : t)
+      );
+
+      toast({
+        title: `Object type set to ${isPublic ? 'Public' : 'Private'}`,
+        status: 'success',
+        duration: 2000,
+        isClosable: true,
+      });
+    } catch (e: any) {
+      toast({
+        title: 'Failed to update object type',
+        description: e.response?.data?.message || e.message || 'Please try again later.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setUpdatingPublicIds((prev) => {
+        const next = new Set(prev);
+        next.delete(type.id);
+        return next;
+      });
+    }
+  };
+
+  const handleToggle = async (typeId: string, isCurrentlyGranted: boolean) => {
+    if (togglingIds.has(typeId)) return;
+
+    setTogglingIds((prev) => new Set(prev).add(typeId));
+    
+    // Optimistic update
+    setAccessibleIds((prev) => {
+      const next = new Set(prev);
+      if (isCurrentlyGranted) {
+        next.delete(typeId);
+      } else {
+        next.add(typeId);
+      }
+      return next;
+    });
+
+    try {
+      if (isCurrentlyGranted) {
         await revokeAccessToObjectType({
           creator_id: memberId,
           obj_type_id: typeId,
         });
-        setAccessibleIds((prev) => {
-          const next = new Set(prev);
-          next.delete(typeId);
-          return next;
+        toast({
+          title: 'Access revoked',
+          status: 'success',
+          duration: 2000,
+          isClosable: true,
         });
       } else {
         await grantAccessToObjectType({
           creator_id: memberId,
           obj_type_id: typeId,
         });
-        setAccessibleIds((prev) => {
-          const next = new Set(prev);
-          next.add(typeId);
-          return next;
+        toast({
+          title: 'Access granted',
+          status: 'success',
+          duration: 2000,
+          isClosable: true,
         });
       }
-    } catch (e) {
+    } catch (e: any) {
+      // Revert on error
+      setAccessibleIds((prev) => {
+        const next = new Set(prev);
+        if (isCurrentlyGranted) {
+          next.add(typeId);
+        } else {
+          next.delete(typeId);
+        }
+        return next;
+      });
       toast({
         title: 'Failed to update access',
+        description: e.response?.data?.message || e.message || 'Please try again later.',
         status: 'error',
         duration: 5000,
         isClosable: true,
+      });
+    } finally {
+      setTogglingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(typeId);
+        return next;
+      });
+    }
+  };
+
+  const handleToggleTag = async (tagId: string, isCurrentlyGranted: boolean) => {
+    if (togglingTagIds.has(tagId)) return;
+
+    setTogglingTagIds((prev) => new Set(prev).add(tagId));
+    
+    // Optimistic update
+    setAccessibleTagIds((prev) => {
+      const next = new Set(prev);
+      if (isCurrentlyGranted) {
+        next.delete(tagId);
+      } else {
+        next.add(tagId);
+      }
+      return next;
+    });
+
+    try {
+      if (isCurrentlyGranted) {
+        await revokeAccessToTag({
+          creator_id: memberId,
+          tag_id: tagId,
+        });
+        toast({
+          title: 'Tag access revoked',
+          status: 'success',
+          duration: 2000,
+          isClosable: true,
+        });
+      } else {
+        await grantAccessToTag({
+          creator_id: memberId,
+          tag_id: tagId,
+        });
+        toast({
+          title: 'Tag access granted',
+          status: 'success',
+          duration: 2000,
+          isClosable: true,
+        });
+      }
+    } catch (e: any) {
+      // Revert on error
+      setAccessibleTagIds((prev) => {
+        const next = new Set(prev);
+        if (isCurrentlyGranted) {
+          next.add(tagId);
+        } else {
+          next.delete(tagId);
+        }
+        return next;
+      });
+      toast({
+        title: 'Failed to update tag access',
+        description: e.response?.data?.message || e.message || 'Please try again later.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setTogglingTagIds((prev) => {
+        const next = new Set(prev);
+        next.delete(tagId);
+        return next;
       });
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size='lg'>
+    <Modal isOpen={isOpen} onClose={onClose} size='xl'>
       <ModalOverlay />
       <ModalContent>
         <ModalHeader>Manage Access for {memberName}</ModalHeader>
         <ModalBody>
           {loading ? (
             <Flex justify='center' align='center' p={4}>
-              <Text>Loading...</Text>
+              <Spinner size="xl" />
             </Flex>
           ) : (
-            <VStack align='stretch' spacing={3} maxH='60vh' overflowY='auto'>
-              {objectTypes.map((type) => (
-                <HStack key={type.id} justify='space-between' p={2} borderWidth={1} borderRadius='md'>
-                  <Text>{type.name}</Text>
-                  <Switch
-                    isChecked={accessibleIds.has(type.id)}
-                    onChange={() =>
-                      handleToggle(type.id, accessibleIds.has(type.id))
-                    }
-                  />
-                </HStack>
-              ))}
+            <VStack align='stretch' spacing={6} maxH='70vh' overflowY='auto'>
+              <Box>
+                <Heading size="sm" mb={3} color="blue.600">Object Types Access</Heading>
+                <VStack align='stretch' spacing={3}>
+                  {objectTypes.length === 0 ? (
+                    <Text color="gray.500" textAlign="center" fontSize="sm">No object types available.</Text>
+                  ) : (
+                    objectTypes.map((type) => (
+                      <HStack key={type.id} justify='space-between' p={2} borderWidth={1} borderRadius='md' bg={type.is_public ? 'blue.50' : 'inherit'}>
+                        <VStack align="start" spacing={1} flex={1}>
+                          <HStack>
+                            <Text fontWeight="bold" fontSize="sm">{type.name}</Text>
+                            {type.is_public && (
+                              <Badge colorScheme="blue" fontSize="2xs">Public</Badge>
+                            )}
+                          </HStack>
+                          {type.description && (
+                            <Text fontSize="xs" color="gray.500" noOfLines={1}>{type.description}</Text>
+                          )}
+                          <Text fontSize="2xs" color={type.is_public ? 'blue.600' : 'gray.500'}>
+                            {type.is_public ? 'Publicly visible' : 'Private'} - Individual access controls visibility & management
+                          </Text>
+                        </VStack>
+                        
+                        <HStack spacing={4} align="center">
+                          <VStack align="center" spacing={0}>
+                            <Text fontSize="9px" fontWeight="bold" color="gray.500" textTransform="uppercase">Global Public</Text>
+                            <Switch
+                              size="sm"
+                              isDisabled={updatingPublicIds.has(type.id)}
+                              isChecked={type.is_public}
+                              onChange={(e) => handleUpdateTypePublicStatus(type, e.target.checked)}
+                              colorScheme="blue"
+                            />
+                          </VStack>
+                          
+                          <VStack align="center" spacing={0}>
+                            <Text fontSize="9px" fontWeight="bold" color="gray.500" textTransform="uppercase">Can See & Edit</Text>
+                            <Switch
+                              size="md"
+                              isDisabled={togglingIds.has(type.id)}
+                              isChecked={accessibleIds.has(type.id)}
+                              onChange={() => handleToggle(type.id, accessibleIds.has(type.id))}
+                              colorScheme="green"
+                            />
+                          </VStack>
+                        </HStack>
+                      </HStack>
+                    ))
+                  )}
+                </VStack>
+              </Box>
+
+              <Divider />
+
+              <Box>
+                <Heading size="sm" mb={3} color="green.600">Tags Access</Heading>
+                <VStack align='stretch' spacing={3}>
+                  {tags.length === 0 ? (
+                    <Text color="gray.500" textAlign="center" fontSize="sm">No tags available.</Text>
+                  ) : (
+                    tags.map((tag) => (
+                      <HStack key={tag.id} justify='space-between' p={2} borderWidth={1} borderRadius='md'>
+                        <VStack align="start" spacing={1} flex={1}>
+                          <HStack>
+                            <Badge
+                              variant="solid"
+                              bg={tag.color_schema.background}
+                              color={tag.color_schema.text}
+                              fontSize="xs"
+                            >
+                              {tag.name}
+                            </Badge>
+                          </HStack>
+                          {tag.description && (
+                            <Text fontSize="xs" color="gray.500" noOfLines={1}>{tag.description}</Text>
+                          )}
+                          <Text fontSize="2xs" color="gray.500">
+                            Grants access to all objects with this tag
+                          </Text>
+                        </VStack>
+                        
+                        <VStack align="center" spacing={0}>
+                          <Text fontSize="9px" fontWeight="bold" color="gray.500" textTransform="uppercase">Can See & Edit</Text>
+                          <Switch
+                            size="md"
+                            isDisabled={togglingTagIds.has(tag.id)}
+                            isChecked={accessibleTagIds.has(tag.id)}
+                            onChange={() => handleToggleTag(tag.id, accessibleTagIds.has(tag.id))}
+                            colorScheme="green"
+                          />
+                        </VStack>
+                      </HStack>
+                    ))
+                  )}
+                </VStack>
+              </Box>
             </VStack>
           )}
         </ModalBody>
         <ModalFooter>
-          <Button onClick={onClose}>Close</Button>
+          <Button onClick={onClose} colorScheme="blue">Close</Button>
         </ModalFooter>
       </ModalContent>
     </Modal>

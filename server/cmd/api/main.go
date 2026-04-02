@@ -33,7 +33,7 @@ func main() {
 	defer db.Close()
 
 	if err := db.Ping(); err != nil {
-			log.Fatalf("Failed to ping database: %v", err)
+		log.Fatalf("Failed to ping database: %v", err)
 	}
 
 	// Initialize services
@@ -59,7 +59,7 @@ func main() {
 	go func() {
 		fmt.Printf("Server is running on port %s\n", getPort())
 		if err := server.ListenAndServe(); err != http.ErrServerClosed {
-				log.Fatalf("HTTP server error: %v", err)
+			log.Fatalf("HTTP server error: %v", err)
 		}
 	}()
 
@@ -84,7 +84,7 @@ func main() {
 
 func getPort() string {
 	if port := os.Getenv("PORT"); port != "" {
-			return port
+		return port
 	}
-	return "8080"
+	return "3000"
 }

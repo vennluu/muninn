@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/crea8r/muninn/server/pkg/api/middleware"
-	"github.com/crea8r/muninn/server/pkg/service"
 	"github.com/crea8r/muninn/server/pkg/pagination"
+	"github.com/crea8r/muninn/server/pkg/service"
 	"github.com/google/uuid"
 )
 
@@ -42,11 +42,18 @@ func parseUUIDs(input string) ([]uuid.UUID, error) {
 
 	var result []uuid.UUID
 	for _, str := range strings.Split(input, ",") {
-		id, err := uuid.Parse(strings.TrimSpace(str))
+		str = strings.TrimSpace(str)
+		if str == "" {
+			continue
+		}
+		id, err := uuid.Parse(str)
 		if err != nil {
 			return nil, fmt.Errorf("invalid UUID: %s", str)
 		}
 		result = append(result, id)
+	}
+	if len(result) == 0 {
+		return nil, nil
 	}
 	return result, nil
 }
@@ -71,20 +78,20 @@ func parseTypeValueCriteria(r *http.Request) ([]json.RawMessage, error) {
 
 func parseIntArray(s string) ([]int32, error) {
 	if s == "" {
-			return nil, nil
+		return nil, nil
 	}
-	
+
 	parts := strings.Split(s, ",")
 	result := make([]int32, 0, len(parts))
-	
+
 	for _, part := range parts {
-			val, err := strconv.ParseInt(strings.TrimSpace(part), 10, 32)
-			if err != nil {
-					return nil, err
-			}
-			result = append(result, int32(val))
+		val, err := strconv.ParseInt(strings.TrimSpace(part), 10, 32)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, int32(val))
 	}
-	
+
 	return result, nil
 }
 
@@ -122,8 +129,8 @@ func (h *AdvancedObjectHandler) ListObjects(w http.ResponseWriter, r *http.Reque
 
 	typeIDs, err := parseUUIDs(r.URL.Query().Get("type_ids"))
 	if err != nil {
-			writeJSON(w, http.StatusBadRequest, errorResponse{Error: fmt.Sprintf("invalid type IDs: %v", err)})
-			return
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: fmt.Sprintf("invalid type IDs: %v", err)})
+		return
 	}
 
 	// Parse type value criteria
@@ -137,8 +144,8 @@ func (h *AdvancedObjectHandler) ListObjects(w http.ResponseWriter, r *http.Reque
 	// Parse sub_status filter
 	subStatusFilter, err := parseIntArray(r.URL.Query().Get("sub_status"))
 	if err != nil {
-			writeJSON(w, http.StatusBadRequest, errorResponse{Error: fmt.Sprintf("invalid sub_status values: %v", err)})
-			return
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: fmt.Sprintf("invalid sub_status values: %v", err)})
+		return
 	}
 
 	// Parse ordering parameters
@@ -154,6 +161,7 @@ func (h *AdvancedObjectHandler) ListObjects(w http.ResponseWriter, r *http.Reque
 			PageSize: int32(pageSize),
 		},
 		OrgID:             orgID,
+		CreatorID:         uuid.MustParse(claims.CreatorID),
 		SearchQuery:       r.URL.Query().Get("q"),
 		StepIDs:           stepIDs,
 		TagIDs:            tagIDs,
@@ -161,8 +169,8 @@ func (h *AdvancedObjectHandler) ListObjects(w http.ResponseWriter, r *http.Reque
 		TypeValueCriteria: typeValueCriteria,
 		OrderBy:           orderBy,
 		TypeValueField:    typeValueField,
-		Ascending:    ascending,
-		SubStatusFilter: subStatusFilter,
+		Ascending:         ascending,
+		SubStatusFilter:   subStatusFilter,
 	}
 
 	// Get results from service

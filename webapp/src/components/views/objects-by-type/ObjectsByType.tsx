@@ -91,8 +91,23 @@ const ObjectsByType: React.FC<ObjecsByTypeProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [typeId, currentPage, filterParams]);
 
+    const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: 'Error loading objects',
+        description: error,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  }, [error, toast]);
+
   const loadObjects = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const response = await fetchObjectsByTypeAdvanced({
         typeId,
@@ -113,14 +128,8 @@ const ObjectsByType: React.FC<ObjecsByTypeProps> = ({
           : Object.keys(response.objectType.fields),
       });
       setPredefinedFilters(newfilter);
-    } catch (error) {
-      toast({
-        title: 'Error loading objects',
-        description: 'Please try again later.',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
+    } catch (error: any) {
+      setError('Please try again later.');
     }
     setIsLoading(false);
   };

@@ -4,6 +4,7 @@ import { Task } from './Task';
 export interface Object {
   id: any;
   name: string;
+  photo?: string;
   idString: string;
   description: string;
   tags: Tag[];
@@ -16,6 +17,7 @@ export interface Object {
 export interface ListObjectsRow {
   id: any;
   name: string;
+  photo?: string;
   idString: string;
   description: string;
   aliases: string[];
@@ -56,6 +58,7 @@ export interface ObjectDetail {
   id: any;
   name: string;
   description: string;
+  photo?: string;
   idString: string;
   aliases: string[];
   tags: Tag[];

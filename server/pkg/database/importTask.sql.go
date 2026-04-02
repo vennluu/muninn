@@ -184,7 +184,7 @@ func (q *Queries) GetImportTaskHistory(ctx context.Context, arg GetImportTaskHis
 }
 
 const getObjectByIDString = `-- name: GetObjectByIDString :one
-SELECT id, name, photo, description, id_string, creator_id, created_at, deleted_at, aliases FROM obj
+SELECT id, name, photo, description, id_string, creator_id, created_at, deleted_at, aliases, org_id FROM obj
 WHERE id_string = $1 OR $1 = ANY(aliases)
 AND deleted_at IS NULL
 ORDER BY (id_string = $1) DESC
@@ -204,6 +204,7 @@ func (q *Queries) GetObjectByIDString(ctx context.Context, idString string) (Obj
 		&i.CreatedAt,
 		&i.DeletedAt,
 		pq.Array(&i.Aliases),
+		&i.OrgID,
 	)
 	return i, err
 }

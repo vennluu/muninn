@@ -30,13 +30,15 @@ WHERE
     AND ot.gdp_measure_field != ''
     AND o.deleted_at IS NULL
     AND c.org_id = $2
+    AND ($3::UUID IS NULL OR otv.type_id = $3)
 GROUP BY 1
 ORDER BY 1 DESC
 `
 
 type GetGDPStatsParams struct {
-	Interval string    `json:"interval"`
-	OrgID    uuid.UUID `json:"org_id"`
+	Interval string        `json:"interval"`
+	OrgID    uuid.UUID     `json:"org_id"`
+	TypeID   uuid.NullUUID `json:"type_id"`
 }
 
 type GetGDPStatsRow struct {
@@ -45,7 +47,7 @@ type GetGDPStatsRow struct {
 }
 
 func (q *Queries) GetGDPStats(ctx context.Context, arg GetGDPStatsParams) ([]GetGDPStatsRow, error) {
-	rows, err := q.query(ctx, q.getGDPStatsStmt, getGDPStats, arg.Interval, arg.OrgID)
+	rows, err := q.query(ctx, q.getGDPStatsStmt, getGDPStats, arg.Interval, arg.OrgID, arg.TypeID)
 	if err != nil {
 		return nil, err
 	}

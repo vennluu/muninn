@@ -88,12 +88,37 @@ export const FunnelPanel: React.FC = () => {
               const funnel = allFunnels.find(
                 (f) => f.id === currentObjectStepFunnel.funnelId
               );
-              if (!funnel) return null;
-              const currentStep = funnel.steps.find(
-                (step: FunnelStep) => step.id === currentObjectStepFunnel.stepId
-              );
               const historySteps = stepsAndFunnels.filter(
                 (sf) => sf.funnelId === currentObjectStepFunnel.funnelId
+              );
+              if (!funnel) {
+                return (
+                  <ObjectFunnelCard
+                    key={currentObjectStepFunnel.funnelId}
+                    currentObjectStepFunnel={currentObjectStepFunnel}
+                    funnel={{ id: currentObjectStepFunnel.funnelId, name: 'Deleted Funnel', description: '', steps: [] }}
+                    currentStep={{ id: currentObjectStepFunnel.stepId, name: 'Deleted Step', step_order: 0, definition: '', example: '', action: '' }}
+                    showComplete={showComplete}
+                    historySteps={historySteps}
+                    onMoveInFunnel={(stepId) => {
+                      handleSubmit(stepId, false);
+                    }}
+                    onDelete={async () => {
+                      deleteObjectFromFunnel(currentObjectStepFunnel.id);
+                      refresh();
+                    }}
+                    onUpdateSubStatus={async (
+                      objectStepId: string,
+                      subStatus: number
+                    ) => {
+                      updateObjectStepSubStatus(objectStepId, subStatus);
+                      refresh();
+                    }}
+                  />
+                );
+              }
+              const currentStep = funnel.steps.find(
+                (step: FunnelStep) => step.id === currentObjectStepFunnel.stepId
               );
               if (!currentStep) return null;
 

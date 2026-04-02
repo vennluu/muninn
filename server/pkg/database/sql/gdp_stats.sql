@@ -17,5 +17,6 @@ WHERE
     AND ot.gdp_measure_field != ''
     AND o.deleted_at IS NULL
     AND c.org_id = sqlc.arg(org_id)
+    AND (sqlc.narg(type_id)::UUID IS NULL OR otv.type_id = sqlc.narg(type_id))
 GROUP BY 1
 ORDER BY 1 DESC;

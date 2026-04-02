@@ -14,6 +14,7 @@ import {
 } from './contexts/ObjectDetailContext';
 import { ActivityFeed, CreateActivityButton } from './components/ActivityFeed';
 import { CreateFunnelStepButton, FunnelPanel } from './components/FunnelPanel';
+import { PublicProfileView } from './components/PublicProfileView';
 import { ObjectHeading } from './components/ObjectHeading';
 import { TaskPanel, CreateTaskButton } from './components/TaskPanel';
 import {
@@ -37,6 +38,7 @@ const ObjectDetailPanel: React.FC<{ objectId: string; orgId?: string }> = ({
 const ObjectDetailContent: React.FC = () => {
   const { object, facts, tasks, isLoading, tabIndex, setTabIndex, isReadOnly } =
     useObjectDetail();
+
   const countTask = tasks.filter(
     (task) => task.status !== TaskStatus.COMPLETED
   ).length;
@@ -44,13 +46,22 @@ const ObjectDetailContent: React.FC = () => {
   const countFunnel = object?.stepsAndFunnels.length || 0;
   const countDetail = object?.typeValues.length || 0;
   const countTags = object?.tags.length || 0;
+
   useEffect(() => {
+    // Only set default tab if not in read-only mode
+    if (isReadOnly) return;
+    
     if (countTask > 0) {
       setTabIndex(0);
     } else {
       setTabIndex(1);
     }
-  }, [countTask, setTabIndex]);
+  }, [countTask, setTabIndex, isReadOnly]);
+
+  if (isReadOnly) {
+    return <PublicProfileView />;
+  }
+
   const handleTabIndexChange = (index: number) => {
     setTabIndex(index);
   };

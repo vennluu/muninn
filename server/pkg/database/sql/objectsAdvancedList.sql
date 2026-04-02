@@ -46,15 +46,30 @@ WITH object_data AS (
         -- Store type values for filtering
         jsonb_agg(DISTINCT otv.type_values) FILTER (WHERE otv.type_values IS NOT NULL) as all_type_values
     FROM obj o
-    JOIN creator c ON o.creator_id = c.id
+    JOIN creator c_owner ON o.creator_id = c_owner.id
+    JOIN creator c_requester ON c_requester.id = $15
     LEFT JOIN obj_tag ot ON o.id = ot.obj_id
     LEFT JOIN tag t ON ot.tag_id = t.id
     LEFT JOIN obj_type_value otv ON o.id = otv.obj_id
     LEFT JOIN obj_fact of ON o.id = of.obj_id
     LEFT JOIN fact f ON of.fact_id = f.id
     LEFT JOIN obj_step os ON o.id = os.obj_id
-    WHERE c.org_id = $1 AND o.deleted_at IS NULL
-    GROUP BY o.id, o.name, o.description, o.id_string, o.aliases, o.creator_id, o.created_at, o.deleted_at
+    WHERE c_owner.org_id = $1 AND o.deleted_at IS NULL
+      AND (
+        c_requester.role = 'admin'
+        OR o.creator_id = $15
+        OR EXISTS (
+            SELECT 1 FROM obj_type_value otv_check
+            JOIN creator_obj_type_access cota ON otv_check.type_id = cota.obj_type_id
+            WHERE otv_check.obj_id = o.id AND cota.creator_id = $15
+        )
+        OR EXISTS (
+            SELECT 1 FROM obj_tag ot_check
+            JOIN creator_tag_access cta ON ot_check.tag_id = cta.tag_id
+            WHERE ot_check.obj_id = o.id AND cta.creator_id = $15
+        )
+      )
+    GROUP BY o.id, o.name, o.photo, o.description, o.id_string, o.aliases, o.creator_id, o.created_at, o.deleted_at
 ),
 filtered_objects AS (
     SELECT od.*,

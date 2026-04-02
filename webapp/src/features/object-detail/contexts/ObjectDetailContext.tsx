@@ -11,11 +11,22 @@ import { getPublicObjectDetails } from 'src/services/publicApi';
 import { ObjectDetail, ObjectTypeValue } from 'src/types/Object';
 import { Fact, Task } from 'src/types';
 
+export interface LinkedObject {
+  id: string;
+  name: string;
+  photo: string;
+  description: string;
+  type_name: string;
+  link_direction: 'incoming' | 'outgoing';
+}
+
 interface ObjectDetailContextProps {
   object: ObjectDetail | null;
   facts: Fact[];
   tasks: Task[];
   imgUrls: string[];
+  linkedObjects: LinkedObject[];
+  orgId?: string;
   isLoading: boolean;
   isReadOnly: boolean;
   tabIndex: number;
@@ -37,6 +48,7 @@ export const ObjectDetailProvider: React.FC<{
   const [facts, setFacts] = useState<Fact[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [imgUrls, setImgUrls] = useState<string[]>([]);
+  const [linkedObjects, setLinkedObjects] = useState<LinkedObject[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [tabIndex, setTabIndex] = useState(0);
   const [forceUpdate, setForceUpdate] = useState(0);
@@ -44,6 +56,9 @@ export const ObjectDetailProvider: React.FC<{
 
   const loadImageUrlsFromObject = useCallback((obj: ObjectDetail) => {
     const tmp: string[] = [];
+    if (obj?.photo) {
+      tmp.push(obj.photo);
+    }
     obj?.typeValues?.forEach((otv: ObjectTypeValue) => {
       if (!otv.type_values) return;
       try {
@@ -77,6 +92,7 @@ export const ObjectDetailProvider: React.FC<{
           id: data.object?.id,
           name: data.object?.name,
           description: data.object?.description,
+          photo: data.object?.photo,
           idString: data.object?.id,
           aliases: [],
           tags: [],
@@ -112,6 +128,7 @@ export const ObjectDetailProvider: React.FC<{
         setObject(objectDetail);
         setFacts(mappedFacts);
         setTasks([]);
+        setLinkedObjects(data.linked_objects || []);
         setImgUrls(loadImageUrlsFromObject(objectDetail));
       } else {
         const data = await fetchObjectDetails(objectId);
@@ -162,6 +179,8 @@ export const ObjectDetailProvider: React.FC<{
         facts,
         tasks,
         imgUrls,
+        linkedObjects,
+        orgId,
         isLoading,
         isReadOnly: !!orgId,
         tabIndex,
