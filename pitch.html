@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Muninn — Pitch</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0a0a0f;
+    color: #fff;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  .deck {
+    width: 100%;
+    height: 100%;
+    position: relative;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 80px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+    text-align: center;
+  }
+
+  .slide.active {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* slide backgrounds */
+  .slide-1 { background: radial-gradient(ellipse at 60% 40%, #1a0533 0%, #0a0a0f 70%); }
+  .slide-2 { background: radial-gradient(ellipse at 40% 60%, #1a0a0a 0%, #0a0a0f 70%); }
+  .slide-3 { background: radial-gradient(ellipse at 50% 50%, #001a1a 0%, #0a0a0f 70%); }
+  .slide-4 { background: radial-gradient(ellipse at 60% 40%, #000d1a 0%, #0a0a0f 70%); }
+  .slide-5 { background: radial-gradient(ellipse at 40% 60%, #0d0d00 0%, #0a0a0f 70%); }
+  .slide-6 { background: radial-gradient(ellipse at 50% 40%, #001a00 0%, #0a0a0f 70%); }
+  .slide-7 { background: radial-gradient(ellipse at 50% 50%, #1a0533 0%, #0a0a0f 70%); }
+
+  /* typography */
+  .eyebrow {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #9b6dff;
+    margin-bottom: 20px;
+  }
+
+  h1 {
+    font-size: 88px;
+    font-weight: 800;
+    letter-spacing: -4px;
+    line-height: 1;
+    background: linear-gradient(135deg, #fff 0%, #9b6dff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 24px;
+  }
+
+  h2 {
+    font-size: 52px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    line-height: 1.1;
+    margin-bottom: 24px;
+  }
+
+  h2 .accent { color: #9b6dff; }
+  h2 .red { color: #ff6b6b; }
+  h2 .green { color: #51cf66; }
+
+  .tagline {
+    font-size: 22px;
+    color: #888;
+    font-weight: 400;
+    max-width: 600px;
+    line-height: 1.6;
+  }
+
+  .body-text {
+    font-size: 20px;
+    color: #aaa;
+    max-width: 700px;
+    line-height: 1.7;
+  }
+
+  .body-text strong { color: #fff; }
+
+  .stat-row {
+    display: flex;
+    gap: 60px;
+    margin-top: 48px;
+    justify-content: center;
+  }
+
+  .stat {
+    text-align: center;
+  }
+
+  .stat-num {
+    font-size: 64px;
+    font-weight: 800;
+    letter-spacing: -3px;
+    line-height: 1;
+    background: linear-gradient(135deg, #9b6dff, #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .stat-label {
+    font-size: 14px;
+    color: #666;
+    margin-top: 8px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .health-row {
+    display: flex;
+    gap: 24px;
+    margin-top: 48px;
+    justify-content: center;
+  }
+
+  .health-card {
+    padding: 20px 32px;
+    border-radius: 16px;
+    font-size: 20px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 180px;
+    justify-content: center;
+  }
+
+  .health-green { background: rgba(81,207,102,0.12); border: 1px solid rgba(81,207,102,0.3); color: #51cf66; }
+  .health-yellow { background: rgba(255,212,59,0.12); border: 1px solid rgba(255,212,59,0.3); color: #ffd43b; }
+  .health-red { background: rgba(255,107,107,0.12); border: 1px solid rgba(255,107,107,0.3); color: #ff6b6b; }
+
+  .feature-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 40px;
+    max-width: 780px;
+    width: 100%;
+  }
+
+  .feature-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 24px;
+    text-align: left;
+  }
+
+  .feature-icon { font-size: 28px; margin-bottom: 12px; }
+  .feature-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .feature-desc { font-size: 14px; color: #666; line-height: 1.5; }
+
+  .quote {
+    font-size: 28px;
+    font-style: italic;
+    color: #ccc;
+    max-width: 700px;
+    line-height: 1.5;
+    border-left: 4px solid #9b6dff;
+    padding-left: 32px;
+    text-align: left;
+  }
+
+  .cta-pill {
+    margin-top: 40px;
+    padding: 16px 40px;
+    border-radius: 100px;
+    background: linear-gradient(135deg, #9b6dff, #7c3aed);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  /* progress dots */
+  .dots {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 100;
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    transition: all 0.3s;
+    cursor: pointer;
+  }
+
+  .dot.active {
+    background: #9b6dff;
+    width: 24px;
+    border-radius: 3px;
+  }
+
+  /* slide counter */
+  .counter {
+    position: fixed;
+    bottom: 32px;
+    right: 40px;
+    font-size: 13px;
+    color: #444;
+    z-index: 100;
+  }
+
+  /* nav hint */
+  .nav-hint {
+    position: fixed;
+    bottom: 32px;
+    left: 40px;
+    font-size: 12px;
+    color: #333;
+    z-index: 100;
+  }
+
+  .divider {
+    width: 48px;
+    height: 3px;
+    background: linear-gradient(90deg, #9b6dff, #7c3aed);
+    border-radius: 2px;
+    margin: 28px auto;
+  }
+</style>
+</head>
+<body>
+
+<div class="deck">
+
+  <!-- SLIDE 1: Title -->
+  <div class="slide slide-1 active">
+    <div class="eyebrow">Colosseum Frontier 2026</div>
+    <h1>Muninn</h1>
+    <p class="tagline">The intelligence layer for Web3 builder communities.<br>Know who's shipping. Know who's ghosting.</p>
+  </div>
+
+  <!-- SLIDE 2: Problem -->
+  <div class="slide slide-2">
+    <div class="eyebrow">The Problem</div>
+    <h2>Every ecosystem loses builders<br>before it <span class="red">knows they're gone.</span></h2>
+    <div class="divider"></div>
+    <p class="body-text">
+      Superteam Vietnam manages <strong>200+ builders</strong>.<br>
+      No tools exist to track who's still shipping —<br>
+      until a builder has already <strong>silently disappeared.</strong>
+    </p>
+  </div>
+
+  <!-- SLIDE 3: Solution -->
+  <div class="slide slide-3">
+    <div class="eyebrow">The Solution</div>
+    <h2>Real-time <span class="accent">health scores</span><br>for every builder.</h2>
+    <div class="health-row">
+      <div class="health-card health-green">🟢 Active</div>
+      <div class="health-card health-yellow">🟡 Fading</div>
+      <div class="health-card health-red">🔴 Ghost risk</div>
+    </div>
+    <p class="body-text" style="margin-top: 32px; font-size: 17px;">
+      GitHub commits · Solana on-chain activity · Twitter presence<br>
+      — all in one dashboard, updated continuously.
+    </p>
+  </div>
+
+  <!-- SLIDE 4: Product Features -->
+  <div class="slide slide-4">
+    <div class="eyebrow">Product</div>
+    <h2>Built for <span class="accent">community managers</span></h2>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">📡</div>
+        <div class="feature-title">BuilderLens</div>
+        <div class="feature-desc">Churn radar — auto-detects builders who are fading before they disappear.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🤖</div>
+        <div class="feature-title">BuilderAgent</div>
+        <div class="feature-desc">AI research — instantly profile any Solana builder from GitHub + live web search.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <div class="feature-title">Activity Feed</div>
+        <div class="feature-desc">Real-time view of what the community is building across GitHub and on-chain.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <div class="feature-title">Smart CRM</div>
+        <div class="feature-desc">Tags, funnels, tasks — all synced to builder activity signals automatically.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5: BuilderAgent Demo -->
+  <div class="slide slide-5">
+    <div class="eyebrow">BuilderAgent — Live Demo</div>
+    <h2>Ask anything about<br>any <span class="accent">Solana builder.</span></h2>
+    <div class="divider"></div>
+    <div class="quote">
+      "Research @vennluu — GitHub + Twitter"<br>
+      <span style="font-size: 18px; color: #51cf66; font-style: normal; margin-top: 16px; display: block;">
+        → WayFi founder · 4/5 activity · Colosseum winner · actively shipping
+      </span>
+    </div>
+    <p class="body-text" style="margin-top: 32px; font-size: 16px; color: #555;">
+      Powered by Groq compound-beta · live web search · no credentials needed
+    </p>
+  </div>
+
+  <!-- SLIDE 6: Traction -->
+  <div class="slide slide-6">
+    <div class="eyebrow">Traction</div>
+    <h2>Built for <span class="green">Superteam Vietnam</span><br>and beyond.</h2>
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-num">200+</div>
+        <div class="stat-label">Builders tracked</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">5</div>
+        <div class="stat-label">Ecosystems</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">Real-time</div>
+        <div class="stat-label" style="font-size:12px">GitHub + Solana + Twitter</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 7: CTA -->
+  <div class="slide slide-7">
+    <div class="eyebrow">Muninn</div>
+    <h1 style="font-size: 64px;">Stop guessing.<br>Start knowing.</h1>
+    <p class="tagline" style="margin-top: 24px;">
+      The intelligence layer every Web3 ecosystem needs<br>to find, retain, and empower its best builders.
+    </p>
+    <div class="cta-pill">muninn.app</div>
+  </div>
+
+</div>
+
+<!-- Navigation -->
+<div class="dots" id="dots"></div>
+<div class="counter" id="counter"></div>
+<div class="nav-hint">← → to navigate</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const dotsEl = document.getElementById('dots');
+  const counterEl = document.getElementById('counter');
+  let current = 0;
+
+  // build dots
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.onclick = () => goTo(i);
+    dotsEl.appendChild(d);
+  });
+
+  function goTo(n) {
+    slides[current].classList.remove('active');
+    dotsEl.children[current].classList.remove('active');
+    current = Math.max(0, Math.min(slides.length - 1, n));
+    slides[current].classList.add('active');
+    dotsEl.children[current].classList.add('active');
+    counterEl.textContent = `${current + 1} / ${slides.length}`;
+  }
+
+  goTo(0);
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'Space') goTo(current + 1);
+    if (e.key === 'ArrowLeft') goTo(current - 1);
+  });
+
+  // click to advance
+  document.querySelector('.deck').addEventListener('click', e => {
+    if (!e.target.closest('.dot')) goTo(current + 1);
+  });
+</script>
+</body>
+</html>

@@ -6,9 +6,10 @@ WITH object_data AS (
         o.name,
         o.photo,
         o.description, 
-        o.id_string, 
+        o.id_string,
+        o.aliases,
         o.creator_id,
-        o.created_at, 
+        o.created_at,
         o.deleted_at,
         -- Create separate tsvector fields for different search sources
         to_tsvector('english', o.name || ' ' || o.description || ' ' || o.id_string) AS obj_search,
@@ -34,7 +35,7 @@ WITH object_data AS (
     LEFT JOIN obj_fact of ON o.id = of.obj_id
     LEFT JOIN fact f ON of.fact_id = f.id
     WHERE c_owner.org_id = $2 AND o.deleted_at IS NULL
-    GROUP BY o.id, o.name, o.photo, o.description, o.id_string, o.creator_id, o.created_at, o.deleted_at
+    GROUP BY o.id, o.name, o.photo, o.description, o.id_string, o.aliases, o.creator_id, o.created_at, o.deleted_at
 ),
 accessible_objects AS (
     SELECT od.id FROM object_data od
@@ -101,12 +102,13 @@ ranked_results AS (
           fact_search @@ websearch_to_tsquery('english', $3) OR
           type_value_search @@ websearch_to_tsquery('english', $3))
 )
-SELECT 
-    rr.id, 
-    rr.name, 
+SELECT
+    rr.id,
+    rr.name,
     rr.photo,
-    rr.description, 
-    rr.id_string, 
+    rr.description,
+    rr.id_string,
+    rr.aliases,
     rr.created_at,
     rr.match_source,
     rr.obj_headline,

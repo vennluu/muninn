@@ -38,6 +38,8 @@ import ListObjectByTagPage from './pages/settings/ListObjectByTagPage';
 import { AutomationsPage } from './pages/settings/Automation';
 import DataPage from './pages/DataPage';
 import GDPPage from './pages/GDPPage';
+import BuilderLensPage from './pages/BuilderLensPage';
+import AgentPage from './pages/AgentPage';
 
 const theme = extendTheme({
   styles: {
@@ -155,6 +157,16 @@ const App: React.FC = () => {
                             exact
                             path='/gdp'
                             component={GDPPage}
+                          />
+                          <ProtectedRoute
+                            exact
+                            path='/builder-lens'
+                            component={BuilderLensPage}
+                          />
+                          <ProtectedRoute
+                            exact
+                            path='/agent'
+                            component={AgentPage}
                           />
                           <ProtectedRoute
                             exact

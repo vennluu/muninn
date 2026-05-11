@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 const countObjectsByOrgID = `-- name: CountObjectsByOrgID :one
@@ -61,9 +62,10 @@ WITH object_data AS (
         o.name,
         o.photo,
         o.description, 
-        o.id_string, 
+        o.id_string,
+        o.aliases,
         o.creator_id,
-        o.created_at, 
+        o.created_at,
         o.deleted_at,
         -- Create separate tsvector fields for different search sources
         to_tsvector('english', o.name || ' ' || o.description || ' ' || o.id_string) AS obj_search,
@@ -89,7 +91,7 @@ WITH object_data AS (
     LEFT JOIN obj_fact of ON o.id = of.obj_id
     LEFT JOIN fact f ON of.fact_id = f.id
     WHERE c_owner.org_id = $2 AND o.deleted_at IS NULL
-    GROUP BY o.id, o.name, o.photo, o.description, o.id_string, o.creator_id, o.created_at, o.deleted_at
+    GROUP BY o.id, o.name, o.photo, o.description, o.id_string, o.aliases, o.creator_id, o.created_at, o.deleted_at
 ),
 accessible_objects AS (
     SELECT od.id FROM object_data od
@@ -112,7 +114,7 @@ accessible_objects AS (
 ranked_results AS (
     -- Calculate search ranking and highlighting for each source
     SELECT 
-        od.id, od.name, od.photo, od.description, od.id_string, od.creator_id, od.created_at, od.deleted_at, od.obj_search, od.fact_search, od.type_value_search, od.obj_text, od.fact_text, od.type_value_text, od.tag_ids, od.type_value_ids,
+        od.id, od.name, od.photo, od.description, od.id_string, od.aliases, od.creator_id, od.created_at, od.deleted_at, od.obj_search, od.fact_search, od.type_value_search, od.obj_text, od.fact_text, od.type_value_text, od.tag_ids, od.type_value_ids,
         CASE WHEN $3 = '' THEN 0
              ELSE ts_rank(obj_search, websearch_to_tsquery('english', $3)) 
         END AS obj_rank,
@@ -156,12 +158,13 @@ ranked_results AS (
           fact_search @@ websearch_to_tsquery('english', $3) OR
           type_value_search @@ websearch_to_tsquery('english', $3))
 )
-SELECT 
-    rr.id, 
-    rr.name, 
+SELECT
+    rr.id,
+    rr.name,
     rr.photo,
-    rr.description, 
-    rr.id_string, 
+    rr.description,
+    rr.id_string,
+    rr.aliases,
     rr.created_at,
     rr.match_source,
     rr.obj_headline,
@@ -201,6 +204,7 @@ type ListObjectsByOrgIDRow struct {
 	Photo             string      `json:"photo"`
 	Description       string      `json:"description"`
 	IDString          string      `json:"id_string"`
+	Aliases           []string    `json:"aliases"`
 	CreatedAt         time.Time   `json:"created_at"`
 	MatchSource       string      `json:"match_source"`
 	ObjHeadline       interface{} `json:"obj_headline"`
@@ -232,6 +236,7 @@ func (q *Queries) ListObjectsByOrgID(ctx context.Context, arg ListObjectsByOrgID
 			&i.Photo,
 			&i.Description,
 			&i.IDString,
+			pq.Array(&i.Aliases),
 			&i.CreatedAt,
 			&i.MatchSource,
 			&i.ObjHeadline,

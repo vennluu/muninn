@@ -21,10 +21,12 @@ import {
   FiChevronRight,
   FiCheckSquare,
   FiBarChart2,
+  FiMessageSquare,
 } from 'react-icons/fi';
 import { useGlobalContext } from 'src/contexts/GlobalContext';
 import authService from 'src/services/authService';
 import { FaDatabase, FaFilter, FaIdCard, FaRobot, FaShare, FaTag } from 'react-icons/fa';
+import { MdOutlineRadar } from 'react-icons/md';
 
 interface SidebarItemProps {
   icon: React.ElementType;
@@ -248,6 +250,22 @@ const Sidebar: React.FC = () => {
               text='GDP Stats'
               to='/gdp'
               isActive={isActive('/gdp')}
+              isCollapsed={isCollapsed}
+              location={location}
+            />
+            <SidebarItem
+              icon={MdOutlineRadar}
+              text='BuilderLens'
+              to='/builder-lens'
+              isActive={isActive('/builder-lens')}
+              isCollapsed={isCollapsed}
+              location={location}
+            />
+            <SidebarItem
+              icon={FiMessageSquare}
+              text='Agent'
+              to='/agent'
+              isActive={isActive('/agent')}
               isCollapsed={isCollapsed}
               location={location}
             />

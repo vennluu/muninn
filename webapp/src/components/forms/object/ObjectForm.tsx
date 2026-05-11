@@ -29,6 +29,7 @@ import { normalizeToIdStyle } from 'src/utils/text';
 import authService from 'src/services/authService';
 import AliasInput from './AliasInput';
 import { FaGithub, FaTwitter, FaDiscord, FaLink, FaImage } from 'react-icons/fa';
+import { FiZap } from 'react-icons/fi';
 
 interface ObjectFormProps {
   isOpen: boolean;
@@ -65,6 +66,7 @@ const ObjectForm: React.FC<ObjectFormProps> = ({
   const [twitter, setTwitter] = useState('');
   const [discord, setDiscord] = useState('');
   const [link, setLink] = useState('');
+  const [solana, setSolana] = useState('');
 
   const addSocialAlias = (type: string, value: string) => {
     if (!value) return;
@@ -83,6 +85,9 @@ const ObjectForm: React.FC<ObjectFormProps> = ({
     ) {
       newAlias = `https://twitter.com/${newAlias}`;
     }
+    if (type === 'solana' && !newAlias.startsWith('solana:')) {
+      newAlias = `solana:${newAlias}`;
+    }
 
     if (!aliases.includes(newAlias)) {
       setAliases([...aliases, newAlias]);
@@ -92,6 +97,7 @@ const ObjectForm: React.FC<ObjectFormProps> = ({
     if (type === 'twitter') setTwitter('');
     if (type === 'discord') setDiscord('');
     if (type === 'link') setLink('');
+    if (type === 'solana') setSolana('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -425,6 +431,26 @@ const ObjectForm: React.FC<ObjectFormProps> = ({
                         }
                       }}
                       onBlur={() => addSocialAlias('discord', discord)}
+                    />
+                  </InputGroup>
+                  <InputGroup>
+                    <InputLeftElement
+                      pointerEvents='none'
+                      children={<FiZap color='#9945FF' />}
+                    />
+                    <Input
+                      placeholder='Solana wallet address'
+                      value={solana}
+                      onChange={(e) => setSolana(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addSocialAlias('solana', solana);
+                        }
+                      }}
+                      onBlur={() => addSocialAlias('solana', solana)}
+                      fontFamily='mono'
+                      fontSize='sm'
                     />
                   </InputGroup>
                 </Stack>

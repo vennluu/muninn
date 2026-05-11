@@ -30,6 +30,7 @@ type ListObjectsByOrgIdRow struct {
 	Photo             string      `json:"photo"`
 	Description       string      `json:"description"`
 	IDString          string      `json:"idString"`
+	Aliases           []string    `json:"aliases"`
 	CreatedAt         time.Time   `json:"createdAt"`
 	MatchSource       string      `json:"matchSource"`
 	ObjHeadline       string      `json:"objHeadline"`
@@ -246,6 +247,7 @@ func (m *ObjectModel) List(ctx context.Context, orgID, creatorID uuid.UUID, sear
 			Photo:             obj.Photo,
 			Description:       obj.Description,
 			IDString:          obj.IDString,
+			Aliases:           obj.Aliases,
 			CreatedAt:         obj.CreatedAt,
 			MatchSource:       obj.MatchSource,
 			ObjHeadline:       objHeadline,

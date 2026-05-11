@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>BuilderLens — Pitch Deck</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;background:#060a08;font-family:'Inter',sans-serif;color:#fff;}
+
+:root{
+  --g:#16a34a;--g2:#22c55e;--g3:#4ade80;--g4:#bbf7d0;
+  --p:#7c3aed;--pl:#a78bfa;
+  --y:#ca8a04;--yl:#facc15;
+  --r:#dc2626;--rl:#f87171;
+  --glass:rgba(255,255,255,.04);
+  --border:rgba(255,255,255,.07);
+  --border-g:rgba(34,197,94,.15);
+}
+
+.slide{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;justify-content:center;align-items:center;
+  padding:64px 96px;
+  opacity:0;pointer-events:none;
+  transition:opacity .4s ease;
+  text-align:center;
+}
+.slide.active{opacity:1;pointer-events:all;}
+
+/* backgrounds */
+.s1{background:radial-gradient(ellipse 90% 70% at 50% 40%,#021a0b 0%,#060a08 60%);}
+.s2{background:radial-gradient(ellipse 70% 70% at 30% 55%,#1a0606 0%,#060a08 65%);}
+.s3{background:radial-gradient(ellipse 70% 70% at 60% 45%,#021409 0%,#060a08 65%);}
+.s4{background:radial-gradient(ellipse 70% 70% at 45% 50%,#030d14 0%,#060a08 65%);}
+.s5{background:radial-gradient(ellipse 80% 70% at 55% 45%,#021a0b 0%,#060a08 65%);}
+.s6{background:radial-gradient(ellipse 70% 70% at 40% 55%,#120614 0%,#060a08 65%);}
+.s7{background:radial-gradient(ellipse 70% 70% at 55% 40%,#0d1a02 0%,#060a08 65%);}
+.s8{background:radial-gradient(ellipse 80% 80% at 50% 45%,#021a0b 0%,#060a08 60%);}
+
+/* type */
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--g2);margin-bottom:16px;}
+.display{
+  font-size:86px;font-weight:900;letter-spacing:-5px;line-height:.92;
+  background:linear-gradient(130deg,#fff 20%,var(--g3) 60%,var(--g2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:24px;
+}
+.h2{font-size:46px;font-weight:800;letter-spacing:-2px;line-height:1.1;margin-bottom:20px;}
+.h3{font-size:22px;font-weight:700;letter-spacing:-.5px;margin-bottom:10px;}
+.lead{font-size:19px;color:#6b7280;line-height:1.7;max-width:640px;}
+.body{font-size:15px;color:#4b5563;line-height:1.65;}
+.white{color:#fff;}
+.gr{color:var(--g2);}
+.yl{color:var(--yl);}
+.rd{color:var(--rl);}
+.pl{color:var(--pl);}
+
+.bar{width:36px;height:3px;background:var(--g);border-radius:2px;margin:18px auto;}
+.bar-l{margin:18px 0;}
+
+/* layout */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:52px;width:100%;max-width:980px;align-items:center;text-align:left;}
+.g2c{display:grid;grid-template-columns:1fr 1fr;gap:14px;width:100%;max-width:820px;}
+.g3c{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;width:100%;max-width:900px;}
+.row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;}
+
+/* cards */
+.card{background:var(--glass);border:1px solid var(--border);border-radius:18px;padding:26px;}
+.card-g{background:rgba(22,163,74,.06);border:1px solid var(--border-g);border-radius:18px;padding:26px;}
+.card-sm{background:var(--glass);border:1px solid var(--border);border-radius:12px;padding:16px 20px;}
+
+/* health badges */
+.badge{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:100px;font-size:14px;font-weight:700;}
+.bg{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);color:var(--g2);}
+.by{background:rgba(250,204,21,.1);border:1px solid rgba(250,204,21,.25);color:var(--yl);}
+.br{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);color:var(--rl);}
+
+/* stat */
+.stat-n{font-size:52px;font-weight:900;letter-spacing:-3px;background:linear-gradient(135deg,var(--g2),var(--g3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.stat-l{font-size:11px;color:#374151;letter-spacing:1.5px;text-transform:uppercase;margin-top:6px;}
+
+/* radar animation */
+@keyframes ping{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.2);opacity:0}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.radar-wrap{position:relative;width:220px;height:220px;flex-shrink:0;}
+.radar-circle{position:absolute;border-radius:50%;border:1px solid rgba(34,197,94,.2);}
+.radar-circle:nth-child(1){inset:0;}
+.radar-circle:nth-child(2){inset:22%;background:rgba(34,197,94,.03);}
+.radar-circle:nth-child(3){inset:44%;background:rgba(34,197,94,.05);}
+.radar-sweep{
+  position:absolute;inset:0;border-radius:50%;
+  background:conic-gradient(from 0deg,transparent 0%,rgba(34,197,94,.18) 12%,transparent 12%);
+  animation:spin 3s linear infinite;
+}
+.radar-dot{position:absolute;width:8px;height:8px;border-radius:50%;transform:translate(-50%,-50%);}
+.radar-dot::after{content:'';position:absolute;inset:0;border-radius:50%;animation:ping 1.8s ease-out infinite;}
+.rd1{top:30%;left:65%;background:var(--g2);}
+.rd1::after{background:rgba(34,197,94,.4);}
+.rd2{top:55%;left:30%;background:var(--yl);}
+.rd2::after{background:rgba(250,204,21,.4);animation-delay:.6s;}
+.rd3{top:72%;left:62%;background:var(--rl);}
+.rd3::after{background:rgba(248,113,113,.4);animation-delay:1.2s;}
+
+/* chat bubble */
+.chat{display:flex;flex-direction:column;gap:12px;width:100%;}
+.bubble-user{
+  align-self:flex-end;
+  background:#1d4ed8;border-radius:18px 18px 4px 18px;
+  padding:12px 18px;font-size:14px;max-width:75%;
+}
+.bubble-ai{
+  align-self:flex-start;display:flex;gap:10px;align-items:flex-start;max-width:80%;
+}
+.ai-avatar{width:30px;height:30px;border-radius:50%;background:var(--g);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;}
+.ai-text{background:rgba(34,197,94,.08);border:1px solid var(--border-g);border-radius:4px 18px 18px 18px;padding:12px 16px;font-size:13px;color:#d1d5db;line-height:1.6;}
+
+/* score ring */
+.score-ring{
+  width:110px;height:110px;border-radius:50%;
+  border:4px solid;display:flex;align-items:center;justify-content:center;flex-direction:column;
+  flex-shrink:0;
+}
+.score-ring-g{border-color:var(--g2);box-shadow:0 0 20px rgba(34,197,94,.2);}
+.score-ring-y{border-color:var(--yl);box-shadow:0 0 20px rgba(250,204,21,.2);}
+.score-ring-r{border-color:var(--rl);box-shadow:0 0 20px rgba(248,113,113,.2);}
+.score-n{font-size:28px;font-weight:900;letter-spacing:-1px;}
+
+/* nav */
+.dots{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:99;}
+.dot{width:6px;height:6px;border-radius:3px;background:rgba(255,255,255,.12);cursor:pointer;transition:all .3s;}
+.dot.on{width:22px;background:var(--g);}
+.snum{position:fixed;bottom:26px;right:36px;font-size:12px;color:#1f2937;z-index:99;}
+.hint{position:fixed;bottom:26px;left:36px;font-size:12px;color:#1f2937;z-index:99;}
+.logo-mark{position:fixed;top:28px;left:36px;z-index:99;font-size:14px;font-weight:800;letter-spacing:.5px;background:linear-gradient(135deg,var(--g2),var(--g3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+</style>
+</head>
+<body>
+
+<div class="logo-mark">BUILDERLENS</div>
+
+<!-- ══ SLIDE 1 — COVER ══ -->
+<div class="slide s1 active">
+  <div class="eyebrow">Muninn · Colosseum Frontier 2026</div>
+  <div class="display">Builder<br>Lens</div>
+  <p class="lead" style="text-align:center;">
+    A churn radar for Web3 builder communities.<br>
+    <span style="color:#374151;">Catch the builders who are fading — before they're gone.</span>
+  </p>
+  <div class="row" style="margin-top:40px;">
+    <span class="badge bg">🟢 Active builders</span>
+    <span class="badge by">🟡 Fading signal</span>
+    <span class="badge br">🔴 Ghost risk</span>
+  </div>
+</div>
+
+<!-- ══ SLIDE 2 — PROBLEM ══ -->
+<div class="slide s2">
+  <div class="eyebrow">The Problem</div>
+  <div class="h2" style="text-align:center;">Communities lose their best builders<br>in <span class="rd">complete silence.</span></div>
+  <div class="bar"></div>
+  <div class="g3c" style="margin-top:32px;">
+    <div class="card" style="text-align:left;">
+      <div style="font-size:32px;margin-bottom:14px;">👻</div>
+      <div class="h3">The Ghost Problem</div>
+      <p class="body">A builder stops shipping. No one notices for 2–3 months. By then, they've already moved on.</p>
+    </div>
+    <div class="card" style="text-align:left;">
+      <div style="font-size:32px;margin-bottom:14px;">📋</div>
+      <div class="h3">Spreadsheet Hell</div>
+      <p class="body">Tracking 200+ builders manually is impossible. Leads get stale. Talent falls through the cracks.</p>
+    </div>
+    <div class="card" style="text-align:left;">
+      <div style="font-size:32px;margin-bottom:14px;">🎯</div>
+      <div class="h3">Wasted Support</div>
+      <p class="body">Grants, mentorship, spotlights go to the wrong people — not the ones actively building.</p>
+    </div>
+  </div>
+  <p class="lead" style="margin-top:32px;text-align:center;font-size:17px;">
+    Superteam Vietnam manages <strong class="white">200+ builders</strong> — with zero real-time visibility.
+  </p>
+</div>
+
+<!-- ══ SLIDE 3 — SOLUTION ══ -->
+<div class="slide s3">
+  <div class="two-col">
+    <div>
+      <div class="eyebrow">The Solution</div>
+      <div class="h2">A <span class="gr">health score</span><br>for every builder.</div>
+      <div class="bar-l"></div>
+      <p class="lead">BuilderLens aggregates GitHub, Solana on-chain activity, and Twitter signals into a single, real-time score — updated automatically, no manual input needed.</p>
+      <div style="margin-top:28px;display:flex;flex-direction:column;gap:10px;">
+        <div class="card-sm" style="display:flex;align-items:center;gap:12px;">
+          <span class="badge bg" style="padding:6px 14px;font-size:12px;">🟢 ≥ 65</span>
+          <span class="body" style="color:#d1d5db;">Active — shipped recently, engaging community</span>
+        </div>
+        <div class="card-sm" style="display:flex;align-items:center;gap:12px;">
+          <span class="badge by" style="padding:6px 14px;font-size:12px;">🟡 35–64</span>
+          <span class="body" style="color:#d1d5db;">Fading — slowing down, needs a nudge</span>
+        </div>
+        <div class="card-sm" style="display:flex;align-items:center;gap:12px;">
+          <span class="badge br" style="padding:6px 14px;font-size:12px;">🔴 &lt; 35</span>
+          <span class="body" style="color:#d1d5db;">Ghost risk — follow up now before it's too late</span>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:center;align-items:center;">
+      <div class="radar-wrap">
+        <div class="radar-circle"></div>
+        <div class="radar-circle"></div>
+        <div class="radar-circle"></div>
+        <div class="radar-sweep"></div>
+        <div class="radar-dot rd1"></div>
+        <div class="radar-dot rd2"></div>
+        <div class="radar-dot rd3"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SLIDE 4 — HOW IT WORKS ══ -->
+<div class="slide s4">
+  <div class="eyebrow">How It Works</div>
+  <div class="h2" style="text-align:center;">Three signals.<br>One <span class="pl">verdict.</span></div>
+  <div class="g3c" style="margin-top:36px;">
+    <div class="card-g" style="text-align:left;">
+      <div style="font-size:30px;margin-bottom:14px;">🐙</div>
+      <div class="h3" style="color:#fff;">GitHub</div>
+      <div class="body" style="margin-bottom:14px;">Fetched in real-time via GitHub API</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="font-size:13px;color:var(--g2);">✓ Commits in last 30 days</div>
+        <div style="font-size:13px;color:var(--g2);">✓ Pull requests merged</div>
+        <div style="font-size:13px;color:var(--g2);">✓ Repos recently pushed</div>
+        <div style="font-size:13px;color:var(--g2);">✓ Last active timestamp</div>
+      </div>
+    </div>
+    <div class="card-g" style="text-align:left;">
+      <div style="font-size:30px;margin-bottom:14px;">◎</div>
+      <div class="h3" style="color:#fff;">Solana On-chain</div>
+      <div class="body" style="margin-bottom:14px;">Via public RPC — no auth needed</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="font-size:13px;color:var(--g2);">✓ Transactions last 30 days</div>
+        <div style="font-size:13px;color:var(--g2);">✓ Program interactions</div>
+        <div style="font-size:13px;color:var(--g2);">✓ Wallet activity signals</div>
+        <div style="font-size:13px;color:var(--g2);">✓ Last on-chain timestamp</div>
+      </div>
+    </div>
+    <div class="card-g" style="text-align:left;">
+      <div style="font-size:30px;margin-bottom:14px;">🤖</div>
+      <div class="h3" style="color:#fff;">BuilderAgent AI</div>
+      <div class="body" style="margin-bottom:14px;">Groq compound-beta web search</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="font-size:13px;color:var(--g2);">✓ Twitter activity (live search)</div>
+        <div style="font-size:13px;color:var(--g2);">✓ Project mentions</div>
+        <div style="font-size:13px;color:var(--g2);">✓ Community presence</div>
+        <div style="font-size:13px;color:var(--g2);">✓ Talent signal verdict</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SLIDE 5 — PRODUCT DEMO ══ -->
+<div class="slide s5">
+  <div class="two-col">
+    <div>
+      <div class="eyebrow">Live Dashboard</div>
+      <div class="h2">Your whole community<br>at a <span class="gr">glance.</span></div>
+      <div class="bar-l"></div>
+      <p class="lead">One view. Every builder. Real-time scores updated daily — no manual work required.</p>
+      <div style="margin-top:28px;display:flex;flex-direction:column;gap:10px;">
+        <div class="card-sm" style="display:flex;gap:10px;align-items:center;">
+          <span style="font-size:18px;">🔔</span>
+          <span class="body" style="color:#d1d5db;">Instant alert when a builder drops to Ghost risk</span>
+        </div>
+        <div class="card-sm" style="display:flex;gap:10px;align-items:center;">
+          <span style="font-size:18px;">📊</span>
+          <span class="body" style="color:#d1d5db;">30-day trend line per builder</span>
+        </div>
+        <div class="card-sm" style="display:flex;gap:10px;align-items:center;">
+          <span style="font-size:18px;">🏆</span>
+          <span class="body" style="color:#d1d5db;">Auto-surface top performers for spotlight</span>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <!-- mock dashboard -->
+      <div class="card" style="padding:20px 24px;">
+        <div style="font-size:11px;color:#374151;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:16px;">Builder Health — Live</div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div class="score-ring score-ring-g" style="width:48px;height:48px;border-width:3px;">
+              <span class="score-n" style="font-size:15px;color:var(--g2);">87</span>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:14px;font-weight:700;">vennluu</div>
+              <div style="font-size:12px;color:#4b5563;">4 commits · 12 txs · WayFi founder</div>
+            </div>
+            <span class="badge bg" style="padding:4px 10px;font-size:11px;">🟢</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div class="score-ring score-ring-y" style="width:48px;height:48px;border-width:3px;">
+              <span class="score-n" style="font-size:15px;color:var(--yl);">51</span>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:14px;font-weight:700;">rayhanrsb</div>
+              <div style="font-size:12px;color:#4b5563;">1 commit · 0 txs · last seen 18d</div>
+            </div>
+            <span class="badge by" style="padding:4px 10px;font-size:11px;">🟡</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div class="score-ring score-ring-r" style="width:48px;height:48px;border-width:3px;">
+              <span class="score-n" style="font-size:15px;color:var(--rl);">19</span>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:14px;font-weight:700;">builder_anon</div>
+              <div style="font-size:12px;color:#4b5563;">0 commits · 0 txs · last seen 47d</div>
+            </div>
+            <span class="badge br" style="padding:4px 10px;font-size:11px;">🔴</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SLIDE 6 — BUILDERAGENT ══ -->
+<div class="slide s6">
+  <div class="two-col">
+    <div>
+      <div class="eyebrow">AI Layer</div>
+      <div class="h2">Meet<br><span class="pl">BuilderAgent.</span></div>
+      <div class="bar-l"></div>
+      <p class="lead">Ask anything about any Solana builder. Gets real answers from live web search — not just training data.</p>
+      <div style="margin-top:24px;font-size:14px;color:#374151;line-height:2;">
+        <div>Powered by <strong style="color:var(--pl);">Groq compound-beta</strong></div>
+        <div>GitHub API · Live web search</div>
+        <div>No Twitter API key needed · Free</div>
+      </div>
+    </div>
+    <div class="chat">
+      <div class="bubble-user">"Who is @vennluu and are they still building?"</div>
+      <div class="bubble-ai">
+        <div class="ai-avatar">AI</div>
+        <div class="ai-text">
+          <strong style="color:var(--g2);">@vennluu — WayFi Foundation</strong><br>
+          Building a decentralized Wi-Fi network on Solana. 4 commits this week, recently merged Solana Pay integration.<br><br>
+          Twitter: 582 followers, daily posts. Colosseum 20-breakout winner.<br><br>
+          <span style="color:var(--g2);">Verdict: 🟢 Strong talent signal. Actively shipping.</span>
+        </div>
+      </div>
+      <div class="bubble-user">"Which builders need a follow-up this week?"</div>
+      <div class="bubble-ai">
+        <div class="ai-avatar">AI</div>
+        <div class="ai-text">
+          <span style="color:var(--rl);">🔴 builder_anon</span> — 47 days silent, was active in Q1.<br>
+          <span style="color:var(--yl);">🟡 rayhanrsb</span> — 1 commit this month, slowing down.<br><br>
+          Recommend reaching out to both this week.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SLIDE 7 — TRACTION + MARKET ══ -->
+<div class="slide s7">
+  <div class="eyebrow">Traction & Market</div>
+  <div class="h2" style="text-align:center;">Built in production.<br><span class="gr">Solving a real pain.</span></div>
+  <div class="g2c" style="margin-top:36px;">
+    <div class="card" style="text-align:center;padding:32px;">
+      <div class="stat-n">200+</div>
+      <div class="stat-l">Builders tracked live</div>
+      <div style="height:1px;background:var(--border);margin:20px 0;"></div>
+      <div class="stat-n">3</div>
+      <div class="stat-l">Data sources integrated</div>
+      <div style="height:1px;background:var(--border);margin:20px 0;"></div>
+      <div class="stat-n">$0</div>
+      <div class="stat-l">Twitter API cost</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div class="card" style="text-align:left;">
+        <div style="font-size:13px;color:var(--g2);font-weight:700;margin-bottom:10px;">Total Addressable Market</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:14px;">
+            <span style="color:#9ca3af;">Superteam chapters</span>
+            <span class="white" style="font-weight:700;">80+</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:14px;">
+            <span style="color:#9ca3af;">Colosseum registrations</span>
+            <span class="white" style="font-weight:700;">18,000+</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:14px;">
+            <span style="color:#9ca3af;">Web3 DAOs / accelerators</span>
+            <span class="white" style="font-weight:700;">500+</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:14px;">
+            <span style="color:#9ca3af;">Hackathon platforms</span>
+            <span class="white" style="font-weight:700;">50+</span>
+          </div>
+        </div>
+      </div>
+      <div class="card-g" style="text-align:left;">
+        <div style="font-size:13px;color:var(--g2);font-weight:700;margin-bottom:8px;">Competitive edge</div>
+        <p class="body" style="color:#9ca3af;font-size:13px;">No existing tool combines GitHub + Solana on-chain + AI-powered Twitter research for community health. We built what didn't exist.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SLIDE 8 — CTA ══ -->
+<div class="slide s8">
+  <div class="eyebrow">BuilderLens · by Muninn</div>
+  <div class="display" style="font-size:60px;margin-bottom:24px;">
+    Every community<br>deserves to know<br><span style="background:linear-gradient(130deg,var(--g2),var(--g3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">who's building.</span>
+  </div>
+  <p class="lead" style="text-align:center;max-width:560px;">
+    Stop losing builders in silence.<br>
+    BuilderLens gives your community the radar it needs.
+  </p>
+  <div class="row" style="margin-top:40px;">
+    <div style="padding:14px 36px;border-radius:100px;background:var(--g);font-size:15px;font-weight:700;">🚀 See Live Demo</div>
+    <div style="padding:14px 36px;border-radius:100px;background:var(--glass);border:1px solid var(--border-g);font-size:15px;font-weight:700;color:#6b7280;">Built by @vennluu</div>
+  </div>
+  <div style="margin-top:52px;display:flex;gap:48px;justify-content:center;">
+    <div style="text-align:center;">
+      <div style="font-size:10px;color:#1f2937;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">Twitter</div>
+      <div style="font-weight:700;font-size:15px;color:var(--g2);">@vennluu</div>
+    </div>
+    <div style="width:1px;background:var(--border);"></div>
+    <div style="text-align:center;">
+      <div style="font-size:10px;color:#1f2937;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">Project</div>
+      <div style="font-weight:700;font-size:15px;color:var(--g2);">@WayFi_fdn</div>
+    </div>
+    <div style="width:1px;background:var(--border);"></div>
+    <div style="text-align:center;">
+      <div style="font-size:10px;color:#1f2937;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">Community</div>
+      <div style="font-weight:700;font-size:15px;color:var(--g2);">Superteam VN</div>
+    </div>
+  </div>
+</div>
+
+<!-- nav -->
+<div class="dots" id="dots"></div>
+<div class="snum" id="snum"></div>
+<div class="hint">← → Space</div>
+
+<script>
+const slides=[...document.querySelectorAll('.slide')];
+const dotsEl=document.getElementById('dots');
+const snumEl=document.getElementById('snum');
+let cur=0;
+slides.forEach((_,i)=>{
+  const d=document.createElement('div');
+  d.className='dot'+(i===0?' on':'');
+  d.onclick=()=>go(i);
+  dotsEl.appendChild(d);
+});
+function go(n){
+  slides[cur].classList.remove('active');
+  dotsEl.children[cur].classList.remove('on');
+  cur=Math.max(0,Math.min(slides.length-1,n));
+  slides[cur].classList.add('active');
+  dotsEl.children[cur].classList.add('on');
+  snumEl.textContent=`${cur+1} / ${slides.length}`;
+}
+go(0);
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' ')go(cur+1);
+  if(e.key==='ArrowLeft')go(cur-1);
+});
+document.addEventListener('click',e=>{if(!e.target.closest('.dot'))go(cur+1);});
+</script>
+</body>
+</html>
